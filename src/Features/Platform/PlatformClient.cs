@@ -19,12 +19,21 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
                 return result.Err();
             }
 
-            // TODO
+            var token = result.Unwrap();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _client.PostAsync("/api/games/persist", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to persist game, status code: {StatusCode}", response.StatusCode);
+                return new HttpRequestException($"Status code was {response.StatusCode}");
+            }
+
             return Result<Exception>.Ok;
         }
         catch (Exception error)
         {
-            logger.LogError(error, "Error");
+            logger.LogError(error, "Error persisting game");
             return error;
         }
     }
@@ -38,12 +47,22 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
             {
                 return result.Err();
             }
-            // TODO
+
+            var token = result.Unwrap();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _client.DeleteAsync($"/api/games/keys/{key}");
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to free game key {Key}, status code: {StatusCode}", key, response.StatusCode);
+                return new HttpRequestException($"Status code was {response.StatusCode}");
+            }
+
             return Result<Exception>.Ok;
         }
         catch (Exception error)
         {
-            logger.LogError(error, "Error");
+            logger.LogError(error, "Error freeing game key {Key}", key);
             return error;
         }
     }
@@ -57,12 +76,28 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
             {
                 return result.Err();
             }
-            // TODO
+
+            var token = result.Unwrap();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(request),
+                System.Text.Encoding.UTF8,
+                "application/json"
+            );
+
+            var response = await _client.PostAsync("/api/logs/system", content);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create system log, status code: {StatusCode}", response.StatusCode);
+                return new HttpRequestException($"Status code was {response.StatusCode}");
+            }
+
             return Result<Exception>.Ok;
         }
         catch (Exception error)
         {
-            logger.LogError(error, "Error");
+            logger.LogError(error, "Error creating system log");
             return error;
         }
     } 

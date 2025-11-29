@@ -27,12 +27,13 @@ public sealed record CachedSession<T>
 
 public enum Error
 {
-    KeyExists,
-    NotGameHost,
-    GameClosed,
-    GameFinished,
-    GameNotFound,
-    System
+    None = 0,
+    KeyExists = 1,
+    NotGameHost = 2,
+    GameClosed = 3,
+    GameFinished = 4,
+    GameNotFound = 5,
+    System = 6
 }
 
 
@@ -126,7 +127,7 @@ public sealed record Result<E>
         Error = error;
     }
 
-    public static Result<E> Ok => new(default!);
+    public static Result<E> Ok => new(default);
 
     public static Result<E> Err(E error) => new(error);
 
@@ -134,8 +135,8 @@ public sealed record Result<E>
 
     public E Err() => Error!;
 
-    public bool IsErr() => Error is not null;
-    public bool IsOk() => Error is null;
+    public bool IsErr() => Error is not null && (!typeof(E).IsValueType || !EqualityComparer<E?>.Default.Equals(Error, default(E)));
+    public bool IsOk() => !IsErr();
 }
 
 public sealed record Option<T>(T Data)

@@ -13,4 +13,8 @@
       <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.0.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="tests/**" />
+    </ItemGroup>
+
 </Project>

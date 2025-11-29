@@ -8,6 +8,10 @@ public static class CoreServiceExtension
     public static IServiceCollection AddCoreServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<CacheTTLOptions>(configuration.GetSection("CacheTTL"));
+        
+        // Also register CacheTTLOptions directly for constructor injection
+        var options = configuration.GetSection("CacheTTL").Get<CacheTTLOptions>() ?? new CacheTTLOptions();
+        services.AddSingleton(options);
 
         services.AddSingleton<GameSessionCache<SpinSession>>();
         services.AddSingleton<GameSessionCache<QuizSession>>();
