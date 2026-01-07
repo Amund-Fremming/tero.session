@@ -73,10 +73,17 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             var session = upsertResult.Unwrap();
-            if (session.UsersCount() == 0)
+            if (session.UsersCount() < 3)
             {
-                await cache.Remove(hubInfo.GameKey);
+                await Task.WhenAll(
+                    cache.Remove(hubInfo.GameKey),
+                    Clients.Group(hubInfo.GameKey).SendAsync("state", SpinGameState.Finished),
+                    Clients.Group(hubInfo.GameKey).SendAsync("cancelled", "En spiller har forlatt spillet. Det må være minst 3 spillere")
+                );
+                await base.OnDisconnectedAsync(exception);
+                return;
             }
+
             await Task.WhenAll(
                 Clients.Group(hubInfo.GameKey).SendAsync("host", session.HostId),
                 Clients.Group(hubInfo.GameKey).SendAsync("players_count", session.UsersCount()),
@@ -139,7 +146,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 return;
             }
 
-            var iterations = getResult.Unwrap().Iterations;
+            var iterations = getResult.Unwrap().GetIterations();
             await Clients.Caller.SendAsync("iterations", iterations);
 
             var result = await cache.Upsert(
@@ -206,7 +213,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
 
             var session = result.Unwrap();
             logger.LogDebug("User added a round to SpinSession");
-            await Clients.Group(key).SendAsync("iterations", session.Iterations);
+            await Clients.Group(key).SendAsync("iterations", session.GetIterations());
         }
         catch (Exception error)
         {

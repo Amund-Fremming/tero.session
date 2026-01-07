@@ -120,8 +120,8 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
                 return;
             }
 
-            var iterations = result.Unwrap().Iterations;
-            await Clients.Caller.SendAsync("iterations", iterations);
+            var session = result.Unwrap();
+            await Clients.Caller.SendAsync("iterations", session.GetIterations());
 
             var managerResult = manager.Insert(Context.ConnectionId, new HubInfo(key));
             if (managerResult.IsErr())
@@ -168,7 +168,7 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
 
             var session = result.Unwrap();
             logger.LogInformation("Adding question: {string}, to game: {string}", question, key);
-            await Clients.Groups(key).SendAsync("iterations", session.Iterations);
+            await Clients.Groups(key).SendAsync("iterations", session.GetIterations());
         }
         catch (Exception error)
         {
