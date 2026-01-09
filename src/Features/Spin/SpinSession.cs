@@ -17,6 +17,9 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
     [JsonPropertyName("current_iteration")]
     public int CurrentIteration { get; set; }
 
+    [JsonPropertyName("selection_size")]
+    public int SelectionSize { get; set; }
+
     [JsonPropertyName("rounds")]
     public List<string> Rounds { get; init; } = [];
 

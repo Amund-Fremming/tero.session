@@ -73,12 +73,14 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             var session = upsertResult.Unwrap();
-            if (session.UsersCount() < 3)
+            var minPlayers = session.SelectionSize + 1;
+
+            if (session.UsersCount() < minPlayers)
             {
                 await Task.WhenAll(
                     cache.Remove(hubInfo.GameKey),
                     Clients.Group(hubInfo.GameKey).SendAsync("state", SpinGameState.Finished),
-                    Clients.Group(hubInfo.GameKey).SendAsync("cancelled", "En spiller har forlatt spillet. Det må være minst 3 spillere")
+                    Clients.Group(hubInfo.GameKey).SendAsync("cancelled", $"En spiller har forlatt spillet. Det må være minst {minPlayers} spillere")
                 );
                 await base.OnDisconnectedAsync(exception);
                 return;
@@ -259,7 +261,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 Clients.Group(key).SendAsync("state", session.State),
                 Clients.Group(key).SendAsync("signal_start", true),
                 Clients.Caller.SendAsync("round", roundText),
-                platformClient.PersistGame(GameType.Spin, key, session)
+                platformClient.PersistGame(GameType.Roulette, key, session) // GameType here does not matter if its Roulette or Duel
             );
         }
         catch (Exception error)
@@ -304,8 +306,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             await Clients.Group(key).SendAsync("state", SpinGameState.RoundInProgress);
             await Clients.Caller.SendAsync("round_text", session.GetRoundText());
             var userIds = session.GetUserIds();
-            const int selectedPerRound = 2;
-            var selected = session.GetSpinResult(selectedPerRound);
+            var selected = session.GetSpinResult(session.SelectionSize);
             if (selected.Count == 0)
             {
                 logger.LogWarning("No players in the game!");
@@ -320,7 +321,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 for (var j = 0; j < userIds.Count; j++)
                 {
                     var batch = new List<Guid>();
-                    for (var k = 0; k < selectedPerRound; k++)
+                    for (var k = 0; k < session.SelectionSize; k++)
                     {
                         var userId = userIds[(j + k) % userIds.Count];
                         batch.Add(userId);

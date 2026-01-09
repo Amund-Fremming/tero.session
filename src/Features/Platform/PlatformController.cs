@@ -25,7 +25,7 @@ public class PlatformController(
             logger.LogInformation("Recieved request for {GameType} with key: {string}", gameType, key);
             var (statusCode, response) = gameType switch
             {
-                GameType.Spin => CoreUtils.InsertPayload(platformClient, spinCache, key, request.Value),
+                GameType.Roulette or GameType.Duel => CoreUtils.InsertPayload(platformClient, spinCache, key, request.Value),
                 GameType.Quiz => CoreUtils.InsertPayload(platformClient, quizCache, key, request.Value),
                 _ => (400, "Not supported game type")
             };

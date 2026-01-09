@@ -97,8 +97,9 @@ public enum GameCategory
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum GameType
 {
-    Spin,
-    Quiz
+    Quiz,
+    Duel,
+    Roulette
 }
 
 public sealed record Result<T, E>
