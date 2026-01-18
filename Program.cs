@@ -8,9 +8,21 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var config = builder.Configuration;
 
+// Configure logging format
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options =>
+{
+    options.FormatterName = "simple";
+});
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.SingleLine = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+    options.IncludeScopes = false;
+});
+
 services.AddControllers();
 services.AddSignalR();
-services.AddLogging();
 
 // Add custom services
 services.AddAuthServices(config);
