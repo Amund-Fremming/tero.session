@@ -153,12 +153,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             var session = result.Unwrap();
-
-            logger.LogError("New user is host: " + session.HostId);
-            await Clients.Group(key).SendAsync("host", session.HostId);
-            await Clients.Group(key).SendAsync("iterations", session.GetIterations());
-
             var insertResult = manager.Insert(Context.ConnectionId, new HubInfo(key, userId));
+
             if (insertResult.IsErr())
             {
                 await CoreUtils.Broadcast(Clients, insertResult.Err(), logger, platformClient);
@@ -166,7 +162,12 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             await Groups.AddToGroupAsync(Context.ConnectionId, key);
-            await Clients.Group(key).SendAsync("players_count", session.UsersCount());
+
+            await Task.WhenAll(
+                Clients.Group(key).SendAsync("host", session.HostId.ToString()),
+                Clients.Group(key).SendAsync("iterations", session.GetIterations()),
+                Clients.Group(key).SendAsync("players_count", session.UsersCount())
+            );
             logger.LogInformation("User added to SpinSession");
         }
         catch (Exception error)
