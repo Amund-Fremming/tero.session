@@ -141,16 +141,6 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 logger.LogError("ConnectToGroup: Failed to remove old entry from manager cache");
             }
 
-            var getResult = await cache.Get(key);
-            if (getResult.IsErr())
-            {
-                await CoreUtils.Broadcast(Clients, getResult.Err(), logger, platformClient);
-                return;
-            }
-
-            var iterations = getResult.Unwrap().GetIterations();
-            await Clients.Caller.SendAsync("iterations", iterations);
-
             var result = await cache.Upsert(
                 key,
                 session => session.AddUser(userId)
@@ -163,7 +153,10 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             var session = result.Unwrap();
+
+            logger.LogError("New user is host: " + session.HostId);
             await Clients.Group(key).SendAsync("host", session.HostId);
+            await Clients.Group(key).SendAsync("iterations", session.GetIterations());
 
             var insertResult = manager.Insert(Context.ConnectionId, new HubInfo(key, userId));
             if (insertResult.IsErr())
