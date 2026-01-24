@@ -64,6 +64,20 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var hubInfo = option.Unwrap();
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, hubInfo.GameKey);
 
+            var getResult = await cache.Get(hubInfo.GameKey);
+            if (getResult.IsErr())
+            {
+                if (getResult.Err() == Error.GameNotFound)
+                {
+                    logger.LogDebug("Game already removed during disconnect for key: {GameKey}", hubInfo.GameKey);
+                    await base.OnDisconnectedAsync(exception);
+                    return;
+                }
+                await CoreUtils.Broadcast(Clients, getResult.Err(), logger, platformClient);
+                await base.OnDisconnectedAsync(exception);
+                return;
+            }
+
             var upsertResult = await cache.Upsert(hubInfo.GameKey, session => session.RemoveUser(hubInfo.UserId));
             if (upsertResult.IsErr())
             {
@@ -254,7 +268,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("state", session.State),
                 Clients.Group(key).SendAsync("signal_start", true),
-                Clients.Caller.SendAsync("round", roundText),
+                Clients.Caller.SendAsync("round_text", roundText),
                 platformClient.PersistGame(GameType.Roulette, key, session) // GameType here does not matter if its Roulette or Duel
             );
         }
@@ -287,9 +301,9 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var result = await cache.Get(key);
             if (result.IsErr())
             {
-                if (result.Err() == Error.GameFinished)
+                if (result.Err() == Error.GameNotFound)
                 {
-                    await Clients.Group(key).SendAsync("state", SpinGameState.Finished);
+                    await Clients.Caller.SendAsync("state", SpinGameState.Finished);
                     return;
                 }
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
@@ -322,7 +336,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                     }
 
                     await Clients.Group(key).SendAsync("selected", batch);
-                    await Task.Delay(500);
+                    await Task.Delay(100);
                 }
             }
 
@@ -345,7 +359,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task NextRound(string key)
+    public async Task<SpinGameState> NextRound(string key)
     {
         try
         {
@@ -353,7 +367,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             {
                 logger.LogWarning("Key was empty");
                 await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
-                return;
+                return SpinGameState.Finished;
             }
 
             var result = await cache.Upsert(
@@ -365,20 +379,22 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             {
                 if (result.Err() == Error.GameFinished)
                 {
-                    await Clients.Group(key).SendAsync("state", SpinGameState.Finished);
-                    return;
+                    await Clients.OthersInGroup(key).SendAsync("state", SpinGameState.Finished);
+                    return SpinGameState.Finished;
                 }
+
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
-                return;
+                return SpinGameState.Finished;
             }
 
             var updatedSession = result.Unwrap();
             var round = updatedSession.GetRoundText();
 
-            await Clients.Caller.SendAsync("round", round);
+            await Clients.Caller.SendAsync("round_text", round);
             await Clients.Group(key).SendAsync("state", updatedSession.State);
 
             logger.LogDebug("SpinSession round initialized");
+            return updatedSession.State;
         }
         catch (Exception error)
         {
@@ -392,6 +408,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(NextRound));
+            return SpinGameState.Finished;
         }
     }
 }

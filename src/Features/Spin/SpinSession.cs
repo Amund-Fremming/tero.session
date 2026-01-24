@@ -84,22 +84,34 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
         while (selected.Count < toSelect && attempts < maxAttempts)
         {
             attempts++;
-            var r = rnd.NextDouble();
 
-            foreach (var userId in userList)
+            var availableUsers = userList.Where(u => !selected.Contains(u)).ToList();
+            if (availableUsers.Count == 0) break;
+
+            var totalWeight = 0.0;
+            var weights = new Dictionary<Guid, double>();
+
+            foreach (var userId in availableUsers)
             {
-                if (selected.Contains(userId)) continue;
-
                 var timesChosen = Users[userId];
                 var playerWeight = GetIterations() > 0
                     ? 1.0 - (double)timesChosen / GetIterations()
                     : 1.0;
+                weights[userId] = Math.Max(0.01, playerWeight);
+                totalWeight += weights[userId];
+            }
 
-                if (playerWeight > r)
+            var r = rnd.NextDouble() * totalWeight;
+            var cumulative = 0.0;
+
+            foreach (var userId in availableUsers)
+            {
+                cumulative += weights[userId];
+                if (r <= cumulative)
                 {
                     selected.Add(userId);
-                    Users[userId] = timesChosen + 1;
-                    if (selected.Count >= toSelect) break;
+                    Users[userId] = Users[userId] + 1;
+                    break;
                 }
             }
         }

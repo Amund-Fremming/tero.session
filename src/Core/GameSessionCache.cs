@@ -251,6 +251,16 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
                 logger.LogWarning("Tried removing non exising session from the cache");
             }
 
+            if (_locks.TryRemove(key, out var removedSem))
+            {
+                removedSem.Dispose();
+            }
+
+            return Result<Error>.Ok;
+        }
+        catch (ObjectDisposedException)
+        {
+            logger.LogWarning("Attempted to access a disposed semaphore for key: {Key}", key);
             return Result<Error>.Ok;
         }
         catch (OverflowException error)
@@ -283,11 +293,13 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
         }
         finally
         {
-            sem?.Release();
-
-            if (_locks.Remove(key, out var removedSem))
+            try
             {
-                removedSem.Dispose();
+                sem?.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Semaphore already disposed, ignore
             }
         }
     }
