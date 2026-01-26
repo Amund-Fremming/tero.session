@@ -91,11 +91,16 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
 
             if (session.UsersCount() < minPlayers)
             {
-                await Task.WhenAll(
-                    cache.Remove(hubInfo.GameKey),
-                    Clients.Group(hubInfo.GameKey).SendAsync("state", SpinGameState.Finished),
-                    Clients.Group(hubInfo.GameKey).SendAsync("cancelled", $"En spiller har forlatt spillet. Det må være minst {minPlayers} spillere")
-                );
+                await cache.Remove(hubInfo.GameKey);
+                await Clients.Group(hubInfo.GameKey).SendAsync("cancelled", $"En spiller har forlatt spillet. Det må være minst {minPlayers} spillere");
+                await base.OnDisconnectedAsync(exception);
+                return;
+            }
+
+            if (session.UsersCount() == 0)
+            {
+                await cache.Remove(hubInfo.GameKey);
+                await Clients.Group(hubInfo.GameKey).SendAsync("state", SpinGameState.Finished);
                 await base.OnDisconnectedAsync(exception);
                 return;
             }
@@ -121,7 +126,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task ConnectToGroup(string key, Guid userId)
+    public async Task ConnectToGroup(string key, Guid userId, bool reconnecting)
     {
         try
         {
@@ -155,10 +160,11 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 logger.LogError("ConnectToGroup: Failed to remove old entry from manager cache");
             }
 
-            var result = await cache.Upsert(
-                key,
-                session => session.AddUser(userId)
-            );
+            var result = reconnecting switch
+            {
+                true => await cache.Upsert(key, session => session.ReconnectUser(userId)),
+                false => await cache.Upsert(key, session => session.AddUser(userId)),
+            };
 
             if (result.IsErr())
             {
