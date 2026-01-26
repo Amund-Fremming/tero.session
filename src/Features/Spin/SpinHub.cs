@@ -173,6 +173,12 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             var session = result.Unwrap();
+            if (session.UsersCount() < session.SelectionSize)
+            {
+                await Clients.Group(key).SendAsync("state", SpinGameState.Finished);
+                return;
+            }
+
             var insertResult = manager.Insert(Context.ConnectionId, new HubInfo(key, userId));
 
             if (insertResult.IsErr())
