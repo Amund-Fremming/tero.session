@@ -13,7 +13,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
     private readonly HttpClient _client = httpClientFactory.CreateClient(nameof(PlatformClient));
     private readonly JsonSerializerOptions _jsonOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
-    public async Task<Result<Error>> PersistGame<T>(GameType gameType, string gameKey, T session)
+    public async Task<Result<Error>> PersistGame<T>(GameType gameType, T session)
     {
         try
         {
@@ -38,7 +38,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
 
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var uri = $"/games/session/persist/{gameType}/{gameKey}";
+            var uri = $"/games/session/persist/{gameType}";
             var response = await _client.PostAsync(uri, content);
 
             if (!response.IsSuccessStatusCode)
@@ -184,7 +184,9 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
                 "application/json"
             );
 
-            var response = await _client.PatchAsync($"/games/generic/free-key/{key}", content);
+
+            var encodedKey = Uri.EscapeDataString(key);
+            var response = await _client.PatchAsync($"/games/general/free-key/{encodedKey}", content);
             if (!response.IsSuccessStatusCode)
             {
                 var log = LogBuilder.New()
@@ -200,6 +202,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
                 return Error.Http;
             }
 
+            logger.LogInformation("Game key released: {string}", key);
             return Result<Error>.Ok;
 
         }

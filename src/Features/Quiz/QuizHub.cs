@@ -215,11 +215,13 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
                 return;
             }
 
-            var persistResult = await platformClient.PersistGame(GameType.Quiz, key, session);
+            var persistResult = await platformClient.PersistGame(GameType.Quiz, session);
             if (persistResult.IsErr())
             {
                 logger.LogError("Failed to persist game after starting");
             }
+
+            await platformClient.FreeGameKey(key);
         }
         catch (Exception error)
         {
