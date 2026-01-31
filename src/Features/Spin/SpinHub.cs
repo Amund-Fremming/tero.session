@@ -8,8 +8,11 @@ using tero.session.src.Features.Platform;
 
 namespace tero.session.src.Features.Spin;
 
+
 public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> manager, GameSessionCache<SpinSession> cache, PlatformClient platformClient) : Hub
 {
+    private const uint MIN_ITERATIONS = 1; // TODO make 10
+
     public override async Task OnConnectedAsync()
     {
         try
@@ -254,7 +257,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task StartGame(string key)
+    public async Task<bool> StartGame(string key)
     {
         try
         {
@@ -262,7 +265,27 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             {
                 logger.LogWarning("Key was empty");
                 await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
-                return;
+                return false;
+            }
+
+            var sessionResult = await cache.Get(key);
+            if (sessionResult.IsErr())
+            {
+                await CoreUtils.Broadcast(Clients, sessionResult.Err(), logger, platformClient);
+                return false;
+            }
+
+            var session = sessionResult.Unwrap();
+            if (session.GetIterations() < MIN_ITERATIONS)
+            {
+                await Clients.Caller.SendAsync("error", $"Minimum {MIN_ITERATIONS} runder for å starte spillet");
+                return false;
+            }
+
+            if (session.UsersCount() < session.SelectionSize)
+            {
+                await Clients.Caller.SendAsync("error", $"Minimum {session.SelectionSize + 1} spillere for å starte spillet");
+                return false;
             }
 
             var result = await cache.Upsert(
@@ -273,10 +296,10 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             if (result.IsErr())
             {
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
-                return;
+                return false;
             }
 
-            var session = result.Unwrap();
+            session = result.Unwrap();
             var roundText = session.GetRoundText();
 
             await Task.WhenAll(
@@ -285,6 +308,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 Clients.Caller.SendAsync("round_text", roundText),
                 platformClient.PersistGame(GameType.Roulette, session) // GameType here does not matter if its Roulette or Duel
             );
+
+            return true;
         }
         catch (Exception error)
         {
@@ -298,6 +323,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(StartGame));
+            return false;
         }
     }
 
