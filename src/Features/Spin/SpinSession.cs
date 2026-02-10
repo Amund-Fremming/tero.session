@@ -170,9 +170,9 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
 
     public Result<SpinSession, Error> AddRound(string round)
     {
-        if (State != SpinGameState.Initialized)
+        if (State != SpinGameState.Created)
         {
-            return Error.GameClosed;
+            return Error.GameClosed; // TODO! return something more logical here? State?
         }
 
         Rounds.Add(round);

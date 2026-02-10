@@ -11,8 +11,8 @@ public class QuizSession
     [JsonPropertyName("current_iteration")]
     public int CurrentIteration { get; init; }
 
-    [JsonPropertyName("questions")]
-    public List<string> Questions { get; init; } = new();
+    [JsonPropertyName("rounds")]
+    public List<string> Rounds { get; init; } = new();
 
 
     [JsonConstructor]
@@ -20,15 +20,15 @@ public class QuizSession
 
     public QuizSession AddQuesiton(string question)
     {
-        Questions.Add(question);
+        Rounds.Add(question);
         return this;
     }
 
-    public int GetIterations() => Questions.Count;
+    public int GetIterations() => Rounds.Count;
 
     public QuizSession Start()
     {
-        Questions.Shuffle();
+        Rounds.Shuffle();
         return this;
     }
 }

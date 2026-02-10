@@ -5,6 +5,9 @@ namespace tero.session.src.Features.Spin;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SpinGameState
 {
+    [JsonPropertyName("created")]
+    Created,
+
     [JsonPropertyName("initialized")]
     Initialized,
 
