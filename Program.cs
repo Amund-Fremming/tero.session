@@ -1,5 +1,6 @@
 using tero.session.src.Core;
 using tero.session.src.Features.Auth;
+using tero.session.src.Features.Imposter;
 using tero.session.src.Features.Platform;
 using tero.session.src.Features.Quiz;
 using tero.session.src.Features.Spin;
@@ -35,6 +36,8 @@ app.MapControllers();
 // Add custom hubs
 app.AddQuizHub();
 app.AddSpinHub();
+app.AddImposterHub();
+
 // Health check for tero-platform
 app.MapGet("/health", () => "OK");
 

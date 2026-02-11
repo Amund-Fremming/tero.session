@@ -3,7 +3,7 @@ using tero.session.src.Core;
 
 namespace tero.session.src.Features.Spin;
 
-public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
+public class SpinSession : IJoinableSession<SpinSession>, ICleanuppable<SpinSession>
 {
     [JsonPropertyName("game_id")]
     public Guid GameId { get; init; }
@@ -24,97 +24,97 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
     public List<string> Rounds { get; init; } = [];
 
     [JsonPropertyName("players")]
-    public Dictionary<Guid, int> Users { get; init; } = [];
+    public Dictionary<Guid, int> Players { get; init; } = [];
 
     [JsonConstructor]
     private SpinSession() { }
 
-    public List<Guid> GetUserIds() => Users.Select(u => u.Key).ToList().Shuffle();
+    public List<Guid> GetPlayerIds() => Players.Select(u => u.Key).ToList().Shuffle();
 
     public int GetIterations() => Rounds.Count;
 
-    public int UsersCount() => Users.Count;
+    public int PlayersCount() => Players.Count;
 
-    public SpinSession RemoveUser(Guid userId)
+    public SpinSession RemovePlayer(Guid userId)
     {
-        Users.Remove(userId);
+        Players.Remove(userId);
         if (userId == HostId)
         {
-            HostId = Users.Keys.FirstOrDefault();
+            HostId = Players.Keys.FirstOrDefault();
         }
 
         return this;
     }
 
-    public Result<SpinSession, Error> ReconnectUser(Guid userId)
+    public Result<SpinSession, Error> ReconnectPlayer(Guid userId)
     {
         if (State == SpinGameState.Finished)
         {
             return Error.GameFinished;
         }
 
-        if (Users.ContainsKey(userId))
+        if (Players.ContainsKey(userId))
         {
             return this;
         }
 
-        if (Users.Count == 0)
+        if (Players.Count == 0)
         {
             HostId = userId;
         }
 
-        Users.Add(userId, 0);
+        Players.Add(userId, 0);
         return this;
     }
 
-    public Result<SpinSession, Error> AddUser(Guid userId)
+    public Result<SpinSession, Error> AddPlayer(Guid userId)
     {
-        if (State != SpinGameState.Initialized)
+        if (State != SpinGameState.Initialized && State != SpinGameState.Created)
         {
             return Error.GameClosed;
         }
 
-        if (Users.ContainsKey(userId))
+        if (Players.ContainsKey(userId))
         {
             return this;
         }
 
-        if (Users.Count == 0)
+        if (Players.Count == 0)
         {
             HostId = userId;
         }
 
-        Users.Add(userId, 0);
+        Players.Add(userId, 0);
         return this;
     }
 
     public HashSet<Guid> GetSpinResult(int numPlayers)
     {
-        if (Users.Count == 0)
+        if (Players.Count == 0)
         {
             return [];
         }
 
-        var toSelect = Math.Min(numPlayers, Users.Count);
+        var toSelect = Math.Min(numPlayers, Players.Count);
         var rnd = new Random();
         var selected = new HashSet<Guid>(toSelect);
-        var userList = Users.Keys.ToList();
-        var maxAttempts = Users.Count * 10;
+        var userList = Players.Keys.ToList();
+        var maxAttempts = Players.Count * 10;
         var attempts = 0;
 
         while (selected.Count < toSelect && attempts < maxAttempts)
         {
             attempts++;
 
-            var availableUsers = userList.Where(u => !selected.Contains(u)).ToList();
-            if (availableUsers.Count == 0) break;
+            var availablePlayers = userList.Where(u => !selected.Contains(u)).ToList();
+            if (availablePlayers.Count == 0) break;
 
             var totalWeight = 0.0;
             var weights = new Dictionary<Guid, double>();
 
-            foreach (var userId in availableUsers)
+            foreach (var userId in availablePlayers)
             {
-                var timesChosen = Users[userId];
+                var timesChosen = Players[userId];
                 var playerWeight = GetIterations() > 0
                     ? 1.0 - (double)timesChosen / GetIterations()
                     : 1.0;
@@ -125,13 +125,13 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
             var r = rnd.NextDouble() * totalWeight;
             var cumulative = 0.0;
 
-            foreach (var userId in availableUsers)
+            foreach (var userId in availablePlayers)
             {
                 cumulative += weights[userId];
                 if (r <= cumulative)
                 {
                     selected.Add(userId);
-                    Users[userId] = Users[userId] + 1;
+                    Players[userId] = Players[userId] + 1;
                     break;
                 }
             }
@@ -143,7 +143,7 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
             foreach (var userId in remaining)
             {
                 selected.Add(userId);
-                Users[userId]++;
+                Players[userId]++;
                 if (selected.Count >= toSelect) break;
             }
         }
@@ -172,7 +172,7 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
     {
         if (State != SpinGameState.Created)
         {
-            return Error.GameClosed; // TODO! return something more logical here? State?
+            return Error.GameClosed;
         }
 
         Rounds.Add(round);
@@ -189,7 +189,7 @@ public class SpinSession : IJoinableSession, ICleanuppable<SpinSession>
 
     public SpinSession Cleanup(Guid userId)
     {
-        Users.Remove(userId);
+        Players.Remove(userId);
         return this;
     }
 }

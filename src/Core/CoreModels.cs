@@ -99,7 +99,8 @@ public enum GameType
 {
     Quiz,
     Duel,
-    Roulette
+    Roulette,
+    Imposter
 }
 
 public sealed record Result<T, E>

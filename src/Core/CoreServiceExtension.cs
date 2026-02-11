@@ -1,3 +1,4 @@
+using tero.session.src.Features.Imposter;
 using tero.session.src.Features.Quiz;
 using tero.session.src.Features.Spin;
 
@@ -12,9 +13,11 @@ public static class CoreServiceExtension
 
         services.AddSingleton<GameSessionCache<SpinSession>>();
         services.AddSingleton<GameSessionCache<QuizSession>>();
+        services.AddSingleton<GameSessionCache<ImposterSession>>();
 
         services.AddSingleton<HubConnectionManager<SpinSession>>();
         services.AddSingleton<HubConnectionManager<QuizSession>>();
+        services.AddSingleton<HubConnectionManager<ImposterSession>>();
 
         services.AddHostedService<CacheCleanupJob>();
 

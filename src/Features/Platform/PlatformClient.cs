@@ -138,8 +138,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
             var response = await _client.PostAsync("/logs", content);
             if (!response.IsSuccessStatusCode)
             {
-                var responseBody = await response.Content.ReadAsStringAsync();
-                logger.LogError("Failed to create system log, status code: {StatusCode}, response: {Response}", response.StatusCode, responseBody);
+                logger.LogError("Failed to create system log, status code: {StatusCode}", response.StatusCode);
                 return Error.Http;
             }
 
@@ -193,12 +192,11 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
                     .WithAction(LogAction.Other)
                     .WithCeverity(LogCeverity.Critical)
                     .WithFunctionName("FreeGameKey")
-                    .WithDescription("Failed to use http to persist game")
+                    .WithDescription("Failed to use http to free game key")
                     .Build();
 
                 CreateSystemLogAsync(log);
-                var responseBody = await response.Content.ReadAsStringAsync();
-                logger.LogError("Failed to free game key {string}", key);
+                logger.LogError("Failed to free game key: {Key}, status code: {StatusCode}", key, response.StatusCode);
                 return Error.Http;
             }
 

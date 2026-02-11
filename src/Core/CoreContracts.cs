@@ -1,10 +1,8 @@
-using tero.session.src.Features.Spin;
-
 namespace tero.session.src.Core;
 
-public interface IJoinableSession
+public interface IJoinableSession<TSession>
 {
-    public Result<SpinSession, Error> AddUser(Guid userId);
+    public Result<TSession, Error> AddPlayer(Guid userId);
 }
 
 public interface ICleanuppable<TSession>

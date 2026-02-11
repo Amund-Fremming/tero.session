@@ -12,8 +12,7 @@ public class QuizSession
     public int CurrentIteration { get; init; }
 
     [JsonPropertyName("rounds")]
-    public List<string> Rounds { get; init; } = new();
-
+    public List<string> Rounds { get; init; } = [];
 
     [JsonConstructor]
     private QuizSession() { }
