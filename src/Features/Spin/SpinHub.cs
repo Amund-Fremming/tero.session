@@ -92,10 +92,21 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var session = upsertResult.Unwrap();
             var minPlayers = session.SelectionSize + 1;
 
-            if (session.PlayersCount() < minPlayers)
+            if (session.State != SpinGameState.Finished
+                && session.State != SpinGameState.Created
+                && session.State != SpinGameState.Initialized
+                && session.PlayersCount() < minPlayers)
             {
                 await cache.Remove(hubInfo.GameKey);
-                await Clients.Group(hubInfo.GameKey).SendAsync("cancelled", $"En spiller har forlatt spillet. Det må være minst {minPlayers} spillere");
+                await Clients.Group(hubInfo.GameKey).SendAsync("cancelled", $"En spiller har forlatt spillet. Det må være minst {minPlayers} spillere for å fortsette");
+                await platformClient.FreeGameKey(hubInfo.GameKey);
+                await base.OnDisconnectedAsync(exception);
+                return;
+            }
+
+            if (session.PlayersCount() == 0)
+            {
+                await cache.Remove(hubInfo.GameKey);
                 await platformClient.FreeGameKey(hubInfo.GameKey);
                 await base.OnDisconnectedAsync(exception);
                 return;
@@ -129,6 +140,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             logger.LogInformation("Connecting user to group: {string}", key);
             if (string.IsNullOrEmpty(key))
             {
+                logger.LogWarning("Received a empty game key");
                 await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
                 return;
             }
@@ -164,12 +176,18 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
 
             if (result.IsErr())
             {
+                if (reconnecting)
+                {
+                    await Clients.Caller.SendAsync("error", "Du har mistet tilkoblingen til spillet");
+                    await base.OnDisconnectedAsync(new Exception(string.Empty));
+                    return;
+                }
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
                 return;
             }
 
             var session = result.Unwrap();
-            if (session.PlayersCount() < session.SelectionSize)
+            if (session.State != SpinGameState.Created && session.State != SpinGameState.Initialized && session.PlayersCount() <= session.SelectionSize)
             {
                 await platformClient.FreeGameKey(key);
                 await Clients.Group(key).SendAsync("state", SpinGameState.Finished);

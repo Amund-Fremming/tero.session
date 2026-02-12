@@ -77,7 +77,39 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
                 return;
             }
 
-            var session = getResult.Unwrap();
+            var upsertResult = await cache.Upsert(hubInfo.GameKey, session => session.RemovePlayer(hubInfo.UserId));
+            if (upsertResult.IsErr())
+            {
+                await CoreUtils.Broadcast(Clients, upsertResult.Err(), logger, platformClient);
+                await base.OnDisconnectedAsync(exception);
+                return;
+            }
+
+            var session = upsertResult.Unwrap();
+            var minPlayers = 3;
+
+            // Only cancel the game if it has started and too few players remain
+            if (session.State != ImposterGameState.Finished
+                && session.State != ImposterGameState.Created
+                && session.State != ImposterGameState.Initialized
+                && session.UsersCount() < minPlayers)
+            {
+                await cache.Remove(hubInfo.GameKey);
+                await Clients.Group(hubInfo.GameKey).SendAsync("cancelled", $"En spiller har forlatt spillet. Det må være minst {minPlayers} spillere");
+                await platformClient.FreeGameKey(hubInfo.GameKey);
+                await base.OnDisconnectedAsync(exception);
+                return;
+            }
+
+            // If all players have left, clean up the game
+            if (session.UsersCount() == 0)
+            {
+                await cache.Remove(hubInfo.GameKey);
+                await platformClient.FreeGameKey(hubInfo.GameKey);
+                await base.OnDisconnectedAsync(exception);
+                return;
+            }
+
             await Task.WhenAll(
                 Clients.Group(hubInfo.GameKey).SendAsync("host", session.HostId),
                 Clients.Group(hubInfo.GameKey).SendAsync("players_count", session.UsersCount()),
