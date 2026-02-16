@@ -14,10 +14,12 @@ public sealed record CachedSession<T>
 {
     private T Session { get; set; } = default!;
     private DateTime ExpiresAt { get; set; } = DateTime.Now;
+    private TimeSpan Ttl { get; set; }
 
     public CachedSession(T session, TimeSpan ttl)
     {
         Session = session;
+        Ttl = ttl;
         ExpiresAt = DateTime.Now.Add(ttl);
     }
 
@@ -27,7 +29,7 @@ public sealed record CachedSession<T>
 
     public void SetSession(T session)
     {
-        ExpiresAt = DateTime.Now;
+        ExpiresAt = DateTime.Now.Add(Ttl);
         Session = session;
     }
 }
