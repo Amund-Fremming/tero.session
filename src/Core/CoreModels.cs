@@ -84,16 +84,14 @@ public sealed record HubInfo
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum GameCategory
 {
-    [JsonPropertyName("casual")]
-    Casual,
-    [JsonPropertyName("random")]
-    Random,
-    [JsonPropertyName("ladies")]
-    Ladies,
+    [JsonPropertyName("girls")]
+    Girls,
     [JsonPropertyName("boys")]
     Boys,
-    [JsonPropertyName("default")]
-    Default
+    [JsonPropertyName("mixed")]
+    Mixed,
+    [JsonPropertyName("innercircle")]
+    InnerCircle
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
