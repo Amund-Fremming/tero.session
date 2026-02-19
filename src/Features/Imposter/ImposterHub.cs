@@ -275,7 +275,7 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
         }
     }
 
-    public async Task<bool> StartGame(string key)
+    public async Task<bool> StartGame(string key, bool isDraft)
     {
         try
         {
@@ -321,11 +321,15 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
             session = result.Unwrap();
             var roundText = session.GetRoundWord();
 
+            if (isDraft)
+            {
+                await platformClient.PersistGame(GameType.Imposter, session);
+            }
+
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("state", session.State),
-                // Clients.Group(key).SendAsync("signal_start", true), 
-                Clients.Caller.SendAsync("round_text", roundText),
-                platformClient.PersistGame(GameType.Imposter, session) // GameType here does not matter if its Roulette or Duel
+                Clients.Group(key).SendAsync("signal_start", true),
+                Clients.Caller.SendAsync("round_text", roundText)
             );
 
             return true;

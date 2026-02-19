@@ -267,7 +267,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task<bool> StartGame(string key)
+    public async Task<bool> StartGame(string key, bool isDraft)
     {
         try
         {
@@ -312,11 +312,15 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             session = result.Unwrap();
             var roundText = session.GetRoundText();
 
+            if (isDraft)
+            {
+                await platformClient.PersistGame(GameType.Roulette, session);
+            }
+
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("state", session.State),
                 Clients.Group(key).SendAsync("signal_start", true),
-                Clients.Caller.SendAsync("round_text", roundText),
-                platformClient.PersistGame(GameType.Roulette, session) // GameType here does not matter if its Roulette or Duel
+                Clients.Caller.SendAsync("round_text", roundText)
             );
 
             return true;
