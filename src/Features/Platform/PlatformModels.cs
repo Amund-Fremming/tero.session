@@ -28,6 +28,8 @@ public sealed record CacheInfo
     public int SpinManagerSize { get; set; }
     public int QuizSessionSize { get; set; }
     public int QuizManagerSize { get; set; }
+    public int ImposterSessionSize { get; set; }
+    public int ImposterManagerSize { get; set; }
 }
 
 public class PlatformOptions

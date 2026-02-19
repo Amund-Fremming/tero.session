@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using tero.session.src.Core;
+using tero.session.src.Features.Imposter;
 using tero.session.src.Features.Quiz;
 using tero.session.src.Features.Spin;
 
@@ -11,9 +12,11 @@ public class PlatformController(
     ILogger<PlatformController> logger,
     PlatformClient platformClient,
     GameSessionCache<SpinSession> spinCache,
-    GameSessionCache<QuizSession> quizCache,
     HubConnectionManager<SpinSession> spinManager,
-    HubConnectionManager<QuizSession> quizManager
+    GameSessionCache<QuizSession> quizCache,
+    HubConnectionManager<QuizSession> quizManager,
+    GameSessionCache<ImposterSession> imposterCache,
+    HubConnectionManager<ImposterSession> imposterManager
 ) : ControllerBase
 {
     [HttpPost("initiate/{gameType}")]
@@ -27,6 +30,7 @@ public class PlatformController(
             {
                 GameType.Roulette or GameType.Duel => CoreUtils.InsertPayload(platformClient, spinCache, key, request.Value),
                 GameType.Quiz => CoreUtils.InsertPayload(platformClient, quizCache, key, request.Value),
+                GameType.Imposter => CoreUtils.InsertPayload(platformClient, imposterCache, key, request.Value),
                 _ => (400, "Not supported game type")
             };
 
@@ -59,7 +63,9 @@ public class PlatformController(
                 SpinSessionSize = spinCache.Size(),
                 SpinManagerSize = spinManager.Size(),
                 QuizSessionSize = quizCache.Size(),
-                QuizManagerSize = quizManager.Size()
+                QuizManagerSize = quizManager.Size(),
+                ImposterSessionSize = imposterCache.Size(),
+                ImposterManagerSize = imposterManager.Size(),
             };
 
             return Ok(payload);
