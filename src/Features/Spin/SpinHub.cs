@@ -187,7 +187,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             var session = result.Unwrap();
-            if (session.State != SpinGameState.Created && session.State != SpinGameState.Initialized && session.PlayersCount() <= session.SelectionSize)
+            var minPlayers = session.SelectionSize + 1;
+            if (session.State != SpinGameState.Created && session.State != SpinGameState.Initialized && session.PlayersCount() < minPlayers)
             {
                 await platformClient.FreeGameKey(key);
                 await Clients.Group(key).SendAsync("state", SpinGameState.Finished);
@@ -292,9 +293,10 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 return false;
             }
 
-            if (session.PlayersCount() < session.SelectionSize)
+            var minPlayers = session.SelectionSize + 1;
+            if (session.PlayersCount() < minPlayers)
             {
-                await Clients.Caller.SendAsync("error", $"Minimum {session.SelectionSize + 1} spillere for å starte spillet");
+                await Clients.Caller.SendAsync("error", $"Minimum {minPlayers} spillere for å starte spillet");
                 return false;
             }
 
