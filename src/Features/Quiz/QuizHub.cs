@@ -152,6 +152,7 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
     {
         try
         {
+            question = question.Trim();
             if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(question))
             {
                 logger.LogWarning("Key or question was empty");

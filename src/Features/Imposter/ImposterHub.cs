@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.ObjectPool;
 using tero.session.src.Core;
 using tero.session.src.Features.Platform;
 using tero.session.src.Features.Spin;
 
 namespace tero.session.src.Features.Imposter;
 
-public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterSession> manager, GameSessionCache<ImposterSession> cache, PlatformClient platformClient) : Hub
+public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<ImposterSession> manager, GameSessionCache<ImposterSession> cache, PlatformClient platformClient) : Hub
 {
     private const uint MIN_ITERATIONS = 1; // TODO make 10
 
@@ -138,6 +139,7 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
             logger.LogInformation("Connecting user to group: {string}", key);
             if (string.IsNullOrEmpty(key))
             {
+                logger.LogWarning("Received a empty game key");
                 await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
                 return;
             }
@@ -157,7 +159,7 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
                 var log = LogBuilder.New()
                     .WithAction(LogAction.Create)
                     .WithCeverity(LogCeverity.Critical)
-                    .WithFunctionName("ConnectToGroup - SpinHub")
+                    .WithFunctionName("ConnectToGroup - ImposterHub")
                     .WithDescription("Failed to remove old entry from manager cache")
                     .Build();
 
@@ -166,13 +168,29 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
             }
 
             var result = await cache.Upsert(key, session => session.AddPlayer(userId));
+
             if (result.IsErr())
             {
+                if (result.Err() == Error.GameClosed)
+                {
+                    await Clients.Caller.SendAsync("error", "Spillet har allerede startet");
+                    await base.OnDisconnectedAsync(new Exception(string.Empty));
+                    return;
+                }
+
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
                 return;
             }
 
             var session = result.Unwrap();
+            var minPlayers = 3;
+
+            if (session.State != ImposterGameState.Created && session.State != ImposterGameState.Initialized && session.PlayersCount() < minPlayers)
+            {
+                await platformClient.FreeGameKey(key);
+                await Clients.Group(key).SendAsync("state", ImposterGameState.Finished);
+                return;
+            }
 
             var insertResult = manager.Insert(Context.ConnectionId, new HubInfo(key, userId));
 
@@ -187,7 +205,7 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("host", session.HostId.ToString()),
                 Clients.Group(key).SendAsync("iterations", session.GetIterations()),
-                Clients.Group(key).SendAsync("players_count", session.UsersCount())
+                Clients.Group(key).SendAsync("players_count", session.PlayersCount())
             );
             logger.LogInformation("User added to ImposterSession");
         }
@@ -196,13 +214,13 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
             var log = LogBuilder.New()
                 .WithAction(LogAction.Create)
                 .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("ConnectToGroup")
-                .WithDescription("ImposterSession: Add user threw an exception")
+                .WithFunctionName("AddUser")
+                .WithDescription("add user to ImposterSession threw an exception")
                 .WithMetadata(error)
                 .Build();
 
             platformClient.CreateSystemLogAsync(log);
-            logger.LogError(error, "ConnectToGroup2");
+            logger.LogError(error, nameof(ConnectToGroup));
         }
     }
 
@@ -300,13 +318,6 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
                 return false;
             }
 
-            var minPlayers = 3;
-            if (session.UsersCount() < minPlayers)
-            {
-                await Clients.Caller.SendAsync("error", $"Minimum {minPlayers} spillere for å starte spillet");
-                return false;
-            }
-
             var result = await cache.Upsert(
                 key,
                 session => session.StartGame()
@@ -321,16 +332,15 @@ public class ImposterHub(ILogger<SpinHub> logger, HubConnectionManager<ImposterS
             session = result.Unwrap();
             var roundText = session.GetRoundWord();
 
+            await Clients.Group(key).SendAsync("signal_start", true);
+            await Clients.Group(key).SendAsync("state", session.State);
+            await Clients.Caller.SendAsync("round_word", roundText);
+
+
             if (isDraft)
             {
                 await platformClient.PersistGame(GameType.Imposter, session);
             }
-
-            await Task.WhenAll(
-                Clients.Group(key).SendAsync("state", session.State),
-                Clients.Group(key).SendAsync("signal_start", true),
-                Clients.Caller.SendAsync("round_text", roundText)
-            );
 
             return true;
         }

@@ -176,6 +176,13 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
 
             if (result.IsErr())
             {
+                if (result.Err() == Error.GameClosed)
+                {
+                    await Clients.Caller.SendAsync("error", "Spillet har allerede startet");
+                    await base.OnDisconnectedAsync(new Exception(string.Empty));
+                    return;
+                }
+
                 if (reconnecting)
                 {
                     await Clients.Caller.SendAsync("error", "Du har mistet tilkoblingen til spillet");
@@ -231,6 +238,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
     {
         try
         {
+            round = round.Trim();
             if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(round))
             {
                 logger.LogWarning("Key or round was empty");
