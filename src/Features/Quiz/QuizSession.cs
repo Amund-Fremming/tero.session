@@ -25,7 +25,7 @@ public class QuizSession
 
     public int GetIterations() => Rounds.Count;
 
-    public QuizSession Start()
+    public QuizSession StartGame()
     {
         Rounds.Shuffle();
         return this;

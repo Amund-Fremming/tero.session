@@ -43,7 +43,6 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
             var option = result.Unwrap();
             if (option.IsNone())
             {
-                // HERE IT FAILS
                 var log = LogBuilder.New()
                     .WithAction(LogAction.Delete)
                     .WithCeverity(LogCeverity.Warning)
@@ -130,7 +129,6 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
                 return;
             }
 
-            logger.LogInformation("User added to group: {string}", key);
             await Groups.AddToGroupAsync(Context.ConnectionId, key);
         }
         catch (Exception error)
@@ -197,7 +195,7 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
                 return;
             }
 
-            var result = await cache.Upsert(key, session => session.Start());
+            var result = await cache.Upsert(key, session => session.StartGame());
             if (result.IsErr())
             {
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
@@ -213,7 +211,6 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
             {
                 logger.LogError("Failed to remove game");
                 await CoreUtils.Broadcast(Clients, removeResult.Err(), logger, platformClient);
-                return;
             }
 
             var persistResult = await platformClient.PersistGame(GameType.Quiz, session);

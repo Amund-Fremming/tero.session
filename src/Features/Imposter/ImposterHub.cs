@@ -9,6 +9,7 @@ namespace tero.session.src.Features.Imposter;
 public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<ImposterSession> manager, GameSessionCache<ImposterSession> cache, PlatformClient platformClient) : Hub
 {
     private const uint MIN_ITERATIONS = 1; // TODO make 10
+    private const uint MIN_PLAYERS = 3; // TODO make 4??
 
     public override async Task OnConnectedAsync()
     {
@@ -78,44 +79,15 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
                 return;
             }
 
-            var upsertResult = await cache.Upsert(hubInfo.GameKey, session => session.RemovePlayer(hubInfo.UserId));
-            if (upsertResult.IsErr())
-            {
-                await CoreUtils.Broadcast(Clients, upsertResult.Err(), logger, platformClient);
-                await base.OnDisconnectedAsync(exception);
-                return;
-            }
+            var session = getResult.Unwrap();
 
-            var session = upsertResult.Unwrap();
-            var minPlayers = 3;
-
-            // Only cancel the game if it has started and too few players remain
-            if (session.State != ImposterGameState.Finished
-                && session.State != ImposterGameState.Created
-                && session.State != ImposterGameState.Initialized
-                && session.UsersCount() < minPlayers)
+            // if host leaves, tear down
+            if (hubInfo.UserId == session.HostId)
             {
                 await cache.Remove(hubInfo.GameKey);
-                await Clients.Group(hubInfo.GameKey).SendAsync("cancelled", $"En spiller har forlatt spillet. Det må være minst {minPlayers} spillere");
-                await platformClient.FreeGameKey(hubInfo.GameKey);
-                await base.OnDisconnectedAsync(exception);
-                return;
             }
 
-            // If all players have left, clean up the game
-            if (session.UsersCount() == 0)
-            {
-                await cache.Remove(hubInfo.GameKey);
-                await platformClient.FreeGameKey(hubInfo.GameKey);
-                await base.OnDisconnectedAsync(exception);
-                return;
-            }
-
-            await Task.WhenAll(
-                Clients.Group(hubInfo.GameKey).SendAsync("host", session.HostId),
-                Clients.Group(hubInfo.GameKey).SendAsync("players_count", session.UsersCount()),
-                base.OnDisconnectedAsync(exception)
-            );
+            await base.OnDisconnectedAsync(exception);
         }
         catch (Exception error)
         {
@@ -132,7 +104,7 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
     }
 
-    public async Task ConnectToGroup(string key, Guid userId)
+    public async Task ConnectToGroup(string key)
     {
         try
         {
@@ -167,46 +139,24 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
                 logger.LogError("ConnectToGroup: Failed to remove old entry from manager cache");
             }
 
-            var result = await cache.Upsert(key, session => session.AddPlayer(userId));
-
+            var result = await cache.Get(key);
             if (result.IsErr())
             {
-                if (result.Err() == Error.GameClosed)
-                {
-                    await Clients.Caller.SendAsync("error", "Spillet har allerede startet");
-                    await base.OnDisconnectedAsync(new Exception(string.Empty));
-                    return;
-                }
-
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
                 return;
             }
 
             var session = result.Unwrap();
-            var minPlayers = 3;
+            await Clients.Caller.SendAsync("iterations", session.GetIterations());
 
-            if (session.State != ImposterGameState.Created && session.State != ImposterGameState.Initialized && session.PlayersCount() < minPlayers)
+            var managerResult = manager.Insert(Context.ConnectionId, new HubInfo(key));
+            if (managerResult.IsErr())
             {
-                await platformClient.FreeGameKey(key);
-                await Clients.Group(key).SendAsync("state", ImposterGameState.Finished);
-                return;
-            }
-
-            var insertResult = manager.Insert(Context.ConnectionId, new HubInfo(key, userId));
-
-            if (insertResult.IsErr())
-            {
-                await CoreUtils.Broadcast(Clients, insertResult.Err(), logger, platformClient);
+                await CoreUtils.Broadcast(Clients, managerResult.Err(), logger, platformClient);
                 return;
             }
 
             await Groups.AddToGroupAsync(Context.ConnectionId, key);
-
-            await Task.WhenAll(
-                Clients.Group(key).SendAsync("host", session.HostId.ToString()),
-                Clients.Group(key).SendAsync("iterations", session.GetIterations()),
-                Clients.Group(key).SendAsync("players_count", session.PlayersCount())
-            );
             logger.LogInformation("User added to ImposterSession");
         }
         catch (Exception error)
@@ -224,17 +174,19 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
     }
 
-    public async Task AddPlayer(string key, Guid playerId)
+    public async Task<bool> AddPlayers(string key, HashSet<string> players)
     {
         try
         {
-            var result = await cache.Upsert(key, session => session.AddPlayer(playerId));
+            var result = await cache.Upsert(key, session => session.AddPlayers(players));
             if (result.IsErr())
             {
                 logger.LogError("Failed to manually add user: {Error}", result.Err());
                 await Clients.Caller.SendAsync("error", "Klarte ikke legge til spiller, forsøk igjen senere.");
-                return;
+                return false;
             }
+
+            return true;
         }
         catch (Exception error)
         {
@@ -248,7 +200,7 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "AddPlayer");
-            return;
+            return false;
         }
     }
 
@@ -293,7 +245,7 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
     }
 
-    public async Task<bool> StartGame(string key, bool isDraft)
+    public async Task StartGame(string key)
     {
         try
         {
@@ -301,48 +253,46 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
             {
                 logger.LogWarning("Key was empty");
                 await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
-                return false;
+                return;
             }
 
             var sessionResult = await cache.Get(key);
             if (sessionResult.IsErr())
             {
                 await CoreUtils.Broadcast(Clients, sessionResult.Err(), logger, platformClient);
-                return false;
+                return;
             }
 
             var session = sessionResult.Unwrap();
             if (session.GetIterations() < MIN_ITERATIONS)
             {
                 await Clients.Caller.SendAsync("error", $"Minimum {MIN_ITERATIONS} runder for å starte spillet");
-                return false;
+                return;
             }
 
-            var result = await cache.Upsert(
-                key,
-                session => session.StartGame()
-            );
-
-            if (result.IsErr())
+            if (session.GetIterations() < MIN_PLAYERS)
             {
-                await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
-                return false;
+                await Clients.Caller.SendAsync("error", $"Minimum {MIN_PLAYERS} spilelre for å starte spillet");
+                return;
             }
 
-            session = result.Unwrap();
-            var roundText = session.GetRoundWord();
+            await Clients.Caller.SendAsync("session", session);
+            await Clients.OthersInGroup(key).SendAsync("signal_start", true);
 
-            await Clients.Group(key).SendAsync("signal_start", true);
-            await Clients.Group(key).SendAsync("state", session.State);
-            await Clients.Caller.SendAsync("round_word", roundText);
-
-
-            if (isDraft)
+            var removeResult = await cache.Remove(key);
+            if (removeResult.IsErr())
             {
-                await platformClient.PersistGame(GameType.Imposter, session);
+                logger.LogError("Failed to remove game");
+                await CoreUtils.Broadcast(Clients, removeResult.Err(), logger, platformClient);
             }
 
-            return true;
+            var persistResult = await platformClient.PersistGame(GameType.Quiz, session);
+            if (persistResult.IsErr())
+            {
+                logger.LogError("Failed to persist game after starting");
+            }
+
+            await platformClient.FreeGameKey(key);
         }
         catch (Exception error)
         {
@@ -356,60 +306,7 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "StartGame");
-            return false;
-        }
-    }
-
-    public async Task StartRound(string key)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(key))
-            {
-                logger.LogWarning("Key was empty");
-                await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
-                return;
-            }
-
-            var result = await cache.Get(key);
-            if (result.IsErr())
-            {
-                await platformClient.FreeGameKey(key);
-                if (result.Err() == Error.GameNotFound)
-                {
-                    await Clients.Caller.SendAsync("state", ImposterGameState.Finished);
-                    return;
-                }
-                await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
-                return;
-            }
-
-            var session = result.Unwrap();
-            await Clients.Group(key).SendAsync("state", ImposterGameState.Started);
-
-            var userIds = session.GetUserIds();
-            var imposter = session.GetImposter();
-            if (imposter == Guid.Empty)
-            {
-                logger.LogWarning("No players in the game!");
-                await Clients.Group(key).SendAsync("cancelled", $"En feil har skjedd, forsøk å starte ett nytt spill");
-                return;
-            }
-
-            await Clients.Group(key).SendAsync("round_word", (session.GetRoundWord(), userIds));
-        }
-        catch (Exception error)
-        {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Update)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("StartRound")
-                .WithDescription("Start SpinSession round threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
-            logger.LogError(error, nameof(StartRound));
+            return;
         }
     }
 }
