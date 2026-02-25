@@ -270,9 +270,9 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
                 return;
             }
 
-            if (session.GetIterations() < MIN_PLAYERS)
+            if (session.PlayersCount() < MIN_PLAYERS)
             {
-                await Clients.Caller.SendAsync("error", $"Minimum {MIN_PLAYERS} spilelre for å starte spillet");
+                await Clients.Caller.SendAsync("error", $"Minimum {MIN_PLAYERS} spillere for å starte spillet");
                 return;
             }
 
