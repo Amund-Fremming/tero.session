@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Microsoft.Net.Http.Headers;
 using tero.session.src.Core;
 
 namespace tero.session.src.Features.Imposter;
@@ -25,8 +24,6 @@ public class ImposterSession
     private ImposterSession() { }
 
     public int PlayersCount() => Players.Count;
-
-    public int UsersCount() => Players.Count;
 
     public int GetIterations() => Rounds.Count;
 

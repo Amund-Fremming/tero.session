@@ -286,7 +286,7 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
                 await CoreUtils.Broadcast(Clients, removeResult.Err(), logger, platformClient);
             }
 
-            var persistResult = await platformClient.PersistGame(GameType.Quiz, session);
+            var persistResult = await platformClient.PersistGame(GameType.Imposter, session);
             if (persistResult.IsErr())
             {
                 logger.LogError("Failed to persist game after starting");

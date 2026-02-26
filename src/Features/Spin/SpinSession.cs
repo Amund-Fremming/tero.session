@@ -151,8 +151,6 @@ public class SpinSession : IJoinableSession<SpinSession>, ICleanuppable<SpinSess
         return selected;
     }
 
-    public bool IsHost(Guid userId) => HostId == userId;
-
     public Result<SpinSession, Error> NextRound()
     {
         if (CurrentIteration >= GetIterations() - 1)
