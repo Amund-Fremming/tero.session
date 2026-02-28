@@ -17,13 +17,13 @@ public class QuizSession
     [JsonConstructor]
     private QuizSession() { }
 
+    public int GetIterations() => Rounds.Count;
+
     public QuizSession AddQuesiton(string question)
     {
         Rounds.Add(question);
         return this;
     }
-
-    public int GetIterations() => Rounds.Count;
 
     public QuizSession StartGame()
     {

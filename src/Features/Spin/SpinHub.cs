@@ -1,8 +1,6 @@
-using System.Data;
 using System.Net.Sockets;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.ObjectPool;
 using tero.session.src.Core;
 using tero.session.src.Features.Platform;
 
@@ -22,16 +20,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Other)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("OnConnectedAsync")
-                .WithDescription("SpinHub: OnConnectedAsync threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "OnConnectedAsync");
+            CoreUtils.LogCriticalError(platformClient, "OnConnectedAsync", "SpinHub: OnConnectedAsync threw an exception", error);
         }
     }
 
@@ -50,16 +40,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var option = result.Unwrap();
             if (option.IsNone())
             {
-                var log = LogBuilder.New()
-                    .WithAction(LogAction.Delete)
-                    .WithCeverity(LogCeverity.Warning)
-                    .WithFunctionName("OnDisconnectedAsync")
-                    .WithDescription("SpinHub: Failed to get disconnecting user's data to gracefully remove")
-                    .Build();
-
-                platformClient.CreateSystemLogAsync(log);
-                logger.LogError("Failed to get disconnecting user's data to gracefully remove");
-
+                logger.LogWarning("Failed to get disconnecting user's data to gracefully remove");
                 await base.OnDisconnectedAsync(exception);
                 return;
             }
@@ -120,16 +101,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Delete)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("OnDisconnectedAsync")
-                .WithDescription("SpinHub OnDisconnectedAsync threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(OnDisconnectedAsync));
+            CoreUtils.LogCriticalError(platformClient, "OnDisconnectedAsync", "SpinHub OnDisconnectedAsync threw an exception", error);
         }
     }
 
@@ -157,15 +130,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
             else
             {
-                var log = LogBuilder.New()
-                    .WithAction(LogAction.Create)
-                    .WithCeverity(LogCeverity.Critical)
-                    .WithFunctionName("ConnectToGroup - SpinHub")
-                    .WithDescription("Failed to remove old entry from manager cache")
-                    .Build();
-
-                platformClient.CreateSystemLogAsync(log);
-                logger.LogError("ConnectToGroup: Failed to remove old entry from manager cache");
+                logger.LogWarning("ConnectToGroup: Failed to remove old entry from manager cache");
             }
 
             var result = reconnecting switch
@@ -221,16 +186,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Create)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("AddUser")
-                .WithDescription("add user to SpinSession threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(ConnectToGroup));
+            CoreUtils.LogCriticalError(platformClient, "AddUser", "Add user to SpinSession threw an exception", error);
         }
     }
 
@@ -263,16 +220,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Create)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("AddRound")
-                .WithDescription("Add round to SpinSession threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(AddRound));
+            CoreUtils.LogCriticalError(platformClient, "AddRound", "Add round to SpinSession threw an exception", error);
         }
     }
 
@@ -337,16 +286,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Update)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("StartGame")
-                .WithDescription("Start SpinSession threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(StartGame));
+            CoreUtils.LogCriticalError(platformClient, "StartGame", "Start SpinSession threw an exception", error);
             return false;
         }
     }
@@ -411,16 +352,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Update)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("StartRound")
-                .WithDescription("Start SpinSession round threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(StartRound));
+            CoreUtils.LogCriticalError(platformClient, "StartRound", "Start SpinSession round threw an exception", error);
         }
     }
 
@@ -464,16 +397,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Update)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("NextRound")
-                .WithDescription("Next SpinSession round threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(NextRound));
+            CoreUtils.LogCriticalError(platformClient, "NextRound", "Next SpinSession round threw an exception", error);
             await platformClient.FreeGameKey(key);
             return SpinGameState.Finished;
         }

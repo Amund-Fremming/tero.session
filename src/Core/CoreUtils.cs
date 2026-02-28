@@ -101,6 +101,19 @@ public static class CoreUtils
         }
     }
 
+    public static void LogCriticalError(PlatformClient platformClient, string functionName, string description, Exception error)
+    {
+        var log = LogBuilder.New()
+            .WithAction(LogAction.Other)
+            .WithCeverity(LogCeverity.Critical)
+            .WithFunctionName(functionName)
+            .WithDescription(description)
+            .WithMetadata(error)
+            .Build();
+
+        platformClient.CreateSystemLogAsync(log);
+    }
+
     public static SerializableError ToSerializable(this Exception ex)
         => new()
         {

@@ -1,16 +1,17 @@
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.ObjectPool;
 using tero.session.src.Core;
 using tero.session.src.Features.Platform;
-using tero.session.src.Features.Spin;
 
 namespace tero.session.src.Features.Imposter;
 
-public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<ImposterSession> manager, GameSessionCache<ImposterSession> cache, PlatformClient platformClient) : Hub
+public class ImposterHub(
+    ILogger<ImposterHub> logger,
+    HubConnectionManager<ImposterSession> manager,
+    GameSessionCache<ImposterSession> cache,
+    PlatformClient platformClient) : Hub
 {
-    private const uint MIN_ITERATIONS = 1; // TODO make 10
-    private const uint MIN_PLAYERS = 3; // TODO make 4??
-
+    private const uint MIN_ITERATIONS = 1;
+    private const uint MIN_PLAYERS = 3;
     public override async Task OnConnectedAsync()
     {
         try
@@ -48,16 +49,7 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
             var option = result.Unwrap();
             if (option.IsNone())
             {
-                var log = LogBuilder.New()
-                    .WithAction(LogAction.Delete)
-                    .WithCeverity(LogCeverity.Warning)
-                    .WithFunctionName("OnDisconnectedAsync")
-                    .WithDescription("ImposterHub: Failed to get disconnecting user's data to gracefully remove")
-                    .Build();
-
-                platformClient.CreateSystemLogAsync(log);
-                logger.LogError("Failed to get disconnecting user's data to gracefully remove");
-
+                logger.LogWarning("Failed to get disconnecting user's data to gracefully remove");
                 await base.OnDisconnectedAsync(exception);
                 return;
             }
@@ -71,17 +63,12 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
                 if (getResult.Err() == Error.GameNotFound)
                 {
                     logger.LogDebug("Game already removed during disconnect for key: {GameKey}", hubInfo.GameKey);
-                    await base.OnDisconnectedAsync(exception);
-                    return;
                 }
-                await CoreUtils.Broadcast(Clients, getResult.Err(), logger, platformClient);
                 await base.OnDisconnectedAsync(exception);
                 return;
             }
 
             var session = getResult.Unwrap();
-
-            // if host leaves, tear down
             if (hubInfo.UserId == session.HostId)
             {
                 await cache.Remove(hubInfo.GameKey);
@@ -91,16 +78,8 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Delete)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("OnDisconnectedAsync")
-                .WithDescription("SpinHub OnDisconnectedAsync threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "OnDisconnectedAsync");
+            CoreUtils.LogCriticalError(platformClient, "OnDisconnectedAsync", "ImposterHub OnDisconnectedAsync threw an exception", error);
         }
     }
 
@@ -108,10 +87,9 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
     {
         try
         {
-            logger.LogInformation("Connecting user to group: {string}", key);
             if (string.IsNullOrEmpty(key))
             {
-                logger.LogWarning("Received a empty game key");
+                logger.LogWarning("Received an empty game key");
                 await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
                 return;
             }
@@ -125,18 +103,6 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
                     var entry = removeOldOption.Unwrap();
                     await Groups.RemoveFromGroupAsync(Context.ConnectionId, entry.GameKey);
                 }
-            }
-            else
-            {
-                var log = LogBuilder.New()
-                    .WithAction(LogAction.Create)
-                    .WithCeverity(LogCeverity.Critical)
-                    .WithFunctionName("ConnectToGroup - ImposterHub")
-                    .WithDescription("Failed to remove old entry from manager cache")
-                    .Build();
-
-                platformClient.CreateSystemLogAsync(log);
-                logger.LogError("ConnectToGroup: Failed to remove old entry from manager cache");
             }
 
             var result = await cache.Get(key);
@@ -161,16 +127,8 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Create)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("AddUser")
-                .WithDescription("add user to ImposterSession threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(ConnectToGroup));
+            CoreUtils.LogCriticalError(platformClient, "ConnectToGroup", "Add user to ImposterSession threw an exception", error);
         }
     }
 
@@ -190,16 +148,8 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Create)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("AddPlayer")
-                .WithDescription("ImposterSession: Add player threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "AddPlayer");
+            CoreUtils.LogCriticalError(platformClient, "AddPlayer", "ImposterSession: Add player threw an exception", error);
             return false;
         }
     }
@@ -215,11 +165,7 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
                 return;
             }
 
-            var result = await cache.Upsert(
-                key,
-                session => session.AddRound(round)
-            );
-
+            var result = await cache.Upsert(key, session => session.AddRound(round));
             if (result.IsErr())
             {
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
@@ -232,16 +178,8 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Create)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("AddRound")
-                .WithDescription("ImposterSession: Add round threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(AddRound));
+            CoreUtils.LogCriticalError(platformClient, "AddRound", "ImposterSession: Add round threw an exception", error);
         }
     }
 
@@ -283,7 +221,6 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
             if (removeResult.IsErr())
             {
                 logger.LogError("Failed to remove game");
-                await CoreUtils.Broadcast(Clients, removeResult.Err(), logger, platformClient);
             }
 
             var persistResult = await platformClient.PersistGame(GameType.Imposter, session);
@@ -296,17 +233,8 @@ public class ImposterHub(ILogger<ImposterHub> logger, HubConnectionManager<Impos
         }
         catch (Exception error)
         {
-            var log = LogBuilder.New()
-                .WithAction(LogAction.Update)
-                .WithCeverity(LogCeverity.Critical)
-                .WithFunctionName("StartGame")
-                .WithDescription("ImposterSession: Start game threw an exception")
-                .WithMetadata(error)
-                .Build();
-
-            platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "StartGame");
-            return;
+            CoreUtils.LogCriticalError(platformClient, "StartGame", "ImposterSession: Start game threw an exception", error);
         }
     }
 }
