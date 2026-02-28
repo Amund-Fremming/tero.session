@@ -342,7 +342,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                     }
 
                     await Clients.Group(key).SendAsync("selected", batch);
-                    await Task.Delay(100);
+                    await Task.Delay(250);
                 }
             }
 
