@@ -46,34 +46,8 @@ public class SpinSession : IJoinableSession<SpinSession>, ICleanuppable<SpinSess
         return this;
     }
 
-    public Result<SpinSession, Error> ReconnectPlayer(Guid userId)
-    {
-        if (State == SpinGameState.Finished)
-        {
-            return Error.GameFinished;
-        }
-
-        if (Players.ContainsKey(userId))
-        {
-            return this;
-        }
-
-        if (Players.Count == 0)
-        {
-            HostId = userId;
-        }
-
-        Players.Add(userId, 0);
-        return this;
-    }
-
     public Result<SpinSession, Error> AddPlayer(Guid userId)
     {
-        if (State != SpinGameState.Initialized && State != SpinGameState.Created)
-        {
-            return Error.GameClosed;
-        }
-
         if (Players.ContainsKey(userId))
         {
             return this;

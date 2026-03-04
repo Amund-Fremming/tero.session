@@ -106,7 +106,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task ConnectToGroup(string key, Guid userId, bool reconnecting)
+    public async Task ConnectToGroup(string key, Guid userId)
     {
         try
         {
@@ -133,12 +133,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 logger.LogWarning("ConnectToGroup: Failed to remove old entry from manager cache");
             }
 
-            var result = reconnecting switch
-            {
-                true => await cache.Upsert(key, session => session.ReconnectPlayer(userId)),
-                false => await cache.Upsert(key, session => session.AddPlayer(userId)),
-            };
-
+            var result = await cache.Upsert(key, session => session.AddPlayer(userId));
             if (result.IsErr())
             {
                 if (result.Err() == Error.GameClosed)
@@ -148,12 +143,6 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                     return;
                 }
 
-                if (reconnecting)
-                {
-                    await Clients.Caller.SendAsync("error", "Du har mistet tilkoblingen til spillet");
-                    await base.OnDisconnectedAsync(new Exception(string.Empty));
-                    return;
-                }
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
                 return;
             }
@@ -279,7 +268,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("state", session.State),
                 Clients.Group(key).SendAsync("signal_start", true),
-                Clients.Caller.SendAsync("round_text", roundText)
+                Clients.Group(key).SendAsync("round_text", roundText)
             );
 
             return true;
@@ -389,7 +378,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var updatedSession = result.Unwrap();
             var round = updatedSession.GetRoundText();
 
-            await Clients.Caller.SendAsync("round_text", round);
+            await Clients.Group(key).SendAsync("round_text", round);
             await Clients.Group(key).SendAsync("state", updatedSession.State);
 
             logger.LogDebug("SpinSession round initialized");
