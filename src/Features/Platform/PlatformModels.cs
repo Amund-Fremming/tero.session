@@ -43,6 +43,18 @@ public record GameSessionRequest
     public JsonElement Value { get; init; }
 }
 
+public sealed record InteractiveEnvelope<TPayload>
+{
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    [JsonPropertyName("category")]
+    public GameCategory Category { get; init; }
+
+    [JsonPropertyName("payload")]
+    public TPayload Payload { get; init; } = default!;
+}
+
 public sealed record CreateSyslogRequest
 {
     [JsonPropertyName("action")]

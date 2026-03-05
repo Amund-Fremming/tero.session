@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -13,7 +14,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
     private readonly HttpClient _client = httpClientFactory.CreateClient(nameof(PlatformClient));
     private readonly JsonSerializerOptions _jsonOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
-    public async Task<Result<Error>> PersistGame<T>(GameType gameType, T session)
+    public async Task<Result<Error>> PersistGame<T>(string name, GameCategory category, GameType gameType, T session)
     {
         try
         {
@@ -32,7 +33,12 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
             }
 
             var token = result.Unwrap();
-            var envelope = new { payload = session };
+            var envelope = new InteractiveEnvelope<T>
+            {
+                Name = name,
+                Category = category,
+                Payload = session
+            };
             var json = JsonSerializer.Serialize(envelope);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 

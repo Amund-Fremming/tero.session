@@ -1,6 +1,8 @@
+using System.ComponentModel;
 using System.Net.Sockets;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.ObjectPool;
 using tero.session.src.Core;
 using tero.session.src.Features.Platform;
 
@@ -214,7 +216,35 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task<bool> StartGame(string key, bool isDraft)
+    public async Task<bool> PersistGame(string key, string name, GameCategory category)
+    {
+        try
+        {
+            var result = await cache.Get(key);
+            if (result.IsErr())
+            {
+                logger.LogError("Failed to get game from cache");
+                return false;
+            }
+
+            var session = result.Unwrap();
+            var persistResult = await platformClient.PersistGame(name, category, GameType.Roulette, session);
+            if (persistResult.IsErr())
+            {
+                logger.LogError("Failed to persist spin game with key {string}", key);
+                return false;
+            }
+            return true;
+        }
+        catch (Exception error)
+        {
+            logger.LogError(error, nameof(StartGame));
+            CoreUtils.LogCriticalError(platformClient, "StartGame", "Start SpinSession threw an exception", error);
+            return false;
+        }
+    }
+
+    public async Task<bool> StartGame(string key)
     {
         try
         {
@@ -260,10 +290,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             session = result.Unwrap();
             var roundText = session.GetRoundText();
 
-            if (isDraft)
-            {
-                await platformClient.PersistGame(GameType.Roulette, session);
-            }
+
 
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("state", session.State),
