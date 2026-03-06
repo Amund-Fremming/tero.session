@@ -223,12 +223,6 @@ public class ImposterHub(
                 logger.LogError("Failed to remove game");
             }
 
-            var persistResult = await platformClient.PersistGame(GameType.Imposter, session);
-            if (persistResult.IsErr())
-            {
-                logger.LogError("Failed to persist game after starting");
-            }
-
             await platformClient.FreeGameKey(key);
         }
         catch (Exception error)

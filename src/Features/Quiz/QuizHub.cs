@@ -171,12 +171,6 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
                 await CoreUtils.Broadcast(Clients, removeResult.Err(), logger, platformClient);
             }
 
-            var persistResult = await platformClient.PersistGame(GameType.Quiz, session);
-            if (persistResult.IsErr())
-            {
-                logger.LogError("Failed to persist game after starting");
-            }
-
             await platformClient.FreeGameKey(key);
         }
         catch (Exception error)
