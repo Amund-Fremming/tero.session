@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Linq.Expressions;
 using System.Net.Sockets;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.AspNetCore.SignalR;
@@ -108,7 +109,10 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task ConnectToGroup(string key, Guid userId)
+    /// <summary>
+    /// Returns true if game has started   
+    /// </summary>
+    public async Task<bool> ConnectToGroup(string key, Guid userId)
     {
         try
         {
@@ -117,7 +121,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             {
                 logger.LogWarning("Received a empty game key");
                 await CoreUtils.Broadcast(Clients, Error.NullReference, logger, platformClient);
-                return;
+                return false;
             }
 
             var removeOldResult = manager.Remove(Context.ConnectionId);
@@ -142,11 +146,11 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 {
                     await Clients.Caller.SendAsync("error", "Spillet har allerede startet");
                     await base.OnDisconnectedAsync(new Exception(string.Empty));
-                    return;
+                    return false;
                 }
 
                 await CoreUtils.Broadcast(Clients, result.Err(), logger, platformClient);
-                return;
+                return false;
             }
 
             var session = result.Unwrap();
@@ -155,7 +159,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             {
                 await platformClient.FreeGameKey(key);
                 await Clients.Group(key).SendAsync("state", SpinGameState.Finished);
-                return;
+                return false;
             }
 
             var insertResult = manager.Insert(Context.ConnectionId, new HubInfo(key, userId));
@@ -163,22 +167,32 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             if (insertResult.IsErr())
             {
                 await CoreUtils.Broadcast(Clients, insertResult.Err(), logger, platformClient);
-                return;
+                return false;
             }
 
             await Groups.AddToGroupAsync(Context.ConnectionId, key);
+
 
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("host", session.HostId.ToString()),
                 Clients.Group(key).SendAsync("iterations", session.GetIterations()),
                 Clients.Group(key).SendAsync("players_count", session.PlayersCount())
             );
+
             logger.LogInformation("User added to SpinSession");
+
+            if (session.State == SpinGameState.RoundFinished || session.State == SpinGameState.RoundInProgress || session.State == SpinGameState.RoundStarted)
+            {
+                return true;
+            }
+
+            return false;
         }
         catch (Exception error)
         {
             logger.LogError(error, nameof(ConnectToGroup));
             CoreUtils.LogCriticalError(platformClient, "AddUser", "Add user to SpinSession threw an exception", error);
+            return false;
         }
     }
 
@@ -216,7 +230,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
     }
 
-    public async Task<bool> PersistGame(string key, string name, GameCategory category)
+    public async Task<bool> PersistGame(string key, GameType gameType, string name, GameCategory category)
     {
         try
         {
@@ -228,7 +242,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             }
 
             var session = result.Unwrap();
-            var persistResult = await platformClient.PersistGame(name, category, GameType.Roulette, session);
+            var persistResult = await platformClient.PersistGame(name, category, gameType, session);
             if (persistResult.IsErr())
             {
                 logger.LogError("Failed to persist spin game with key {string}", key);
