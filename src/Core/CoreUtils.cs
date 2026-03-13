@@ -20,9 +20,9 @@ public static class CoreUtils
             var result = cache.Insert(key, session);
             if (result.IsErr())
             {
-                return result.Err() switch
+                return result.Err().Type switch
                 {
-                    Error.KeyExists => (409, "Game key in use"),
+                    Error.ErrorType.KeyExists => (409, "Game key in use"),
                     _ => (500, "Internal server error")
                 };
             }
@@ -48,40 +48,40 @@ public static class CoreUtils
     {
         try
         {
-            logger.LogError("Broadcast recieved error: {Error}", error);
-            switch (error)
+            logger.LogError("Broadcast received error. Type: {ErrorType}, Message: {ErrorMessage}", error.Type, error.Message);
+            switch (error.Type)
             {
-                case Error.KeyExists:
+                case Error.ErrorType.KeyExists:
                     await clients.Caller.SendAsync("error", "Spill nøkkelen er allerede i bruk");
                     break;
-                case Error.NotGameHost:
+                case Error.ErrorType.NotGameHost:
                     await clients.Caller.SendAsync("error", "Denne handlingen kan bare en host gjøre");
                     break;
-                case Error.GameClosed:
+                case Error.ErrorType.GameClosed:
                     await clients.Caller.SendAsync("error", "Spillet er lukket for fler handlinger");
                     break;
-                case Error.GameFinished:
+                case Error.ErrorType.GameFinished:
                     await clients.Caller.SendAsync("error", "Spillet er ferdig");
                     break;
-                case Error.GameNotFound:
+                case Error.ErrorType.GameNotFound:
                     await clients.Caller.SendAsync("error", "Spillet finnes ikke");
                     break;
-                case Error.System:
+                case Error.ErrorType.System:
                     await clients.Caller.SendAsync("error", "En feil har skjedd, forsøk igjen senere");
                     break;
-                case Error.Json:
+                case Error.ErrorType.Json:
                     await clients.Caller.SendAsync("error", "En feil har skjedd, forsøk på nytt");
                     break;
-                case Error.NullReference:
+                case Error.ErrorType.NullReference:
                     await clients.Caller.SendAsync("error", "Mottok en tom verdi, forsøk på nytt");
                     break;
-                case Error.Overflow:
+                case Error.ErrorType.Overflow:
                     await clients.Caller.SendAsync("error", "En feil har skjedd, forsøk på nytt");
                     break;
-                case Error.Http:
+                case Error.ErrorType.Http:
                     await clients.Caller.SendAsync("error", "En feil har skjedd, forsøk på nytt");
                     break;
-                case Error.Upstream:
+                case Error.ErrorType.Upstream:
                     await clients.Caller.SendAsync("error", "En feil har skjedd, forsøk på nytt");
                     break;
             }

@@ -130,7 +130,7 @@ public class SpinSession : IJoinableSession<SpinSession>, ICleanuppable<SpinSess
         if (CurrentIteration >= GetIterations() - 1)
         {
             State = SpinGameState.Finished;
-            return Error.GameFinished;
+            return new Error(Error.ErrorType.GameFinished, "NextRound failed: reached last iteration, game is finished");
         }
 
         State = SpinGameState.RoundStarted;
@@ -144,7 +144,7 @@ public class SpinSession : IJoinableSession<SpinSession>, ICleanuppable<SpinSess
     {
         if (State != SpinGameState.Created)
         {
-            return Error.GameClosed;
+            return new Error(Error.ErrorType.GameClosed, "AddRound failed: game is not in Created state");
         }
 
         Rounds.Add(round);

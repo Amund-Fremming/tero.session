@@ -54,7 +54,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var getResult = await cache.Get(hubInfo.GameKey);
             if (getResult.IsErr())
             {
-                if (getResult.Err() == Error.GameNotFound)
+                if (getResult.Err().Type == Error.ErrorType.GameNotFound)
                 {
                     logger.LogDebug("Game already removed during disconnect for key: {GameKey}", hubInfo.GameKey);
                     await base.OnDisconnectedAsync(exception);
@@ -142,7 +142,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var result = await cache.Upsert(key, session => session.AddPlayer(userId));
             if (result.IsErr())
             {
-                if (result.Err() == Error.GameClosed)
+                if (result.Err().Type == Error.ErrorType.GameClosed)
                 {
                     await Clients.Caller.SendAsync("error", "Spillet har allerede startet");
                     await base.OnDisconnectedAsync(new Exception(string.Empty));
@@ -304,8 +304,6 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             session = result.Unwrap();
             var roundText = session.GetRoundText();
 
-
-
             await Task.WhenAll(
                 Clients.Group(key).SendAsync("state", session.State),
                 Clients.Group(key).SendAsync("signal_start", true),
@@ -337,7 +335,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             if (result.IsErr())
             {
                 await platformClient.FreeGameKey(key);
-                if (result.Err() == Error.GameNotFound)
+                if (result.Err().Type == Error.ErrorType.GameNotFound)
                 {
                     await Clients.Caller.SendAsync("state", SpinGameState.Finished);
                     return;
@@ -406,7 +404,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             if (result.IsErr())
             {
                 await platformClient.FreeGameKey(key);
-                if (result.Err() == Error.GameFinished)
+                if (result.Err().Type == Error.ErrorType.GameFinished)
                 {
                     await Clients.OthersInGroup(key).SendAsync("state", SpinGameState.Finished);
                     return SpinGameState.Finished;

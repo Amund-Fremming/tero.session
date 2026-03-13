@@ -60,7 +60,7 @@ public class ImposterHub(
             var getResult = await cache.Get(hubInfo.GameKey);
             if (getResult.IsErr())
             {
-                if (getResult.Err() == Error.GameNotFound)
+                if (getResult.Err().Type == Error.ErrorType.GameNotFound)
                 {
                     logger.LogDebug("Game already removed during disconnect for key: {GameKey}", hubInfo.GameKey);
                 }
@@ -139,8 +139,8 @@ public class ImposterHub(
             var result = await cache.Upsert(key, session => session.AddPlayers(players));
             if (result.IsErr())
             {
-                logger.LogError("Failed to manually add user: {Error}", result.Err());
-                await Clients.Caller.SendAsync("error", "Klarte ikke legge til spiller, forsøk igjen senere.");
+                logger.LogError("Failed to manually add users: {Error}", result.Err());
+                await Clients.Caller.SendAsync("error", "Klarte ikke legge til spillere, forsøk igjen senere.");
                 return false;
             }
 

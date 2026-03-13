@@ -18,7 +18,7 @@ public class HubConnectionManager<T>(ILogger<HubConnectionManager<T>> logger, Ca
         {
             if (connectionId == string.Empty || connectionId is null)
             {
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "Get failed: connectionId was null or empty");
             }
 
             if (!_manager.TryGetValue(connectionId, out var value))
@@ -45,7 +45,7 @@ public class HubConnectionManager<T>(ILogger<HubConnectionManager<T>> logger, Ca
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(Get));
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Get failed: unexpected exception while reading hub connection manager entry");
         }
     }
 
@@ -66,7 +66,7 @@ public class HubConnectionManager<T>(ILogger<HubConnectionManager<T>> logger, Ca
 
                 platformClient.CreateSystemLogAsync(log);
                 logger.LogWarning("Key already exists in game cache");
-                return Error.KeyExists;
+                return new Error(Error.ErrorType.KeyExists, $"Insert failed: connectionId '{connectionId}' already exists");
             }
 
             return Result<Error>.Ok;
@@ -83,7 +83,7 @@ public class HubConnectionManager<T>(ILogger<HubConnectionManager<T>> logger, Ca
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Insert - Cache overflow");
-            return Error.Overflow;
+            return new Error(Error.ErrorType.Overflow, "Insert failed: cache overflow while inserting hub connection entry");
         }
         catch (Exception error)
         {
@@ -97,7 +97,7 @@ public class HubConnectionManager<T>(ILogger<HubConnectionManager<T>> logger, Ca
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(Insert));
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Insert failed: unexpected exception while inserting hub connection manager entry");
         }
     }
 
@@ -107,7 +107,7 @@ public class HubConnectionManager<T>(ILogger<HubConnectionManager<T>> logger, Ca
         {
             if (connectionId == string.Empty || connectionId is null)
             {
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "Remove failed: connectionId was null or empty");
             }
 
             if (!_manager.TryRemove(connectionId, out var value))
@@ -134,7 +134,7 @@ public class HubConnectionManager<T>(ILogger<HubConnectionManager<T>> logger, Ca
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, nameof(Remove));
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Remove failed: unexpected exception while removing hub connection manager entry");
         }
     }
 }

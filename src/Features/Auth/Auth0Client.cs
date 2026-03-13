@@ -35,7 +35,7 @@ public class Auth0Client(IHttpClientFactory httpClientFactory, ILogger<Auth0Clie
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogError("Response from auth0 was unsuccessful");
-                return Error.Upstream;
+                return new Error(Error.ErrorType.Upstream, $"FetchM2MToken failed: Auth0 returned status {(int)response.StatusCode}");
             }
 
             var json = await response.Content.ReadAsStringAsync();
@@ -44,7 +44,7 @@ public class Auth0Client(IHttpClientFactory httpClientFactory, ILogger<Auth0Clie
             if (token is null)
             {
                 logger.LogError("Auth token response was null");
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "FetchM2MToken failed: deserialized token response was null");
             }
 
             return token;
@@ -52,17 +52,17 @@ public class Auth0Client(IHttpClientFactory httpClientFactory, ILogger<Auth0Clie
         catch (JsonException error)
         {
             logger.LogError(error, nameof(FetchM2MToken));
-            return Error.Json;
+            return new Error(Error.ErrorType.Json, "FetchM2MToken failed: JSON serialization/deserialization error");
         }
         catch (HttpRequestException error)
         {
             logger.LogError(error, nameof(FetchM2MToken));
-            return Error.Http;
+            return new Error(Error.ErrorType.Http, "FetchM2MToken failed: HTTP request exception");
         }
         catch (Exception error)
         {
             logger.LogError(error, nameof(FetchM2MToken));
-            return Error.System;
+            return new Error(Error.ErrorType.System, "FetchM2MToken failed: unexpected exception");
         }
     }
 
@@ -94,7 +94,7 @@ public class Auth0Client(IHttpClientFactory httpClientFactory, ILogger<Auth0Clie
         catch (Exception error)
         {
             logger.LogError(error, nameof(GetToken));
-            return Error.System;
+            return new Error(Error.ErrorType.System, "GetToken failed: unexpected exception while retrieving cached/fresh token");
         }
         finally
         {

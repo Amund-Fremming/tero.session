@@ -20,7 +20,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
         {
             if (key == string.Empty || key is null)
             {
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "Get failed: key was null or empty");
             }
 
             sem = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
@@ -28,7 +28,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             if (!_cache.TryGetValue(key, out var cacheEntry))
             {
-                return Error.GameNotFound;
+                return new Error(Error.ErrorType.GameNotFound, $"Get failed: no session found for key '{key}'");
             }
 
             return cacheEntry.GetSession();
@@ -45,7 +45,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Failed to get session cache entry");
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Get failed: unexpected exception while reading session cache entry");
         }
         finally
         {
@@ -60,7 +60,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
             if (key == string.Empty || key is null || session is null)
             {
                 logger.LogInformation("Recieved a empty key");
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "Insert failed: key or session was null/empty");
             }
 
             var entry = new CachedSession<TSession>(session, _ttl);
@@ -75,7 +75,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
                 platformClient.CreateSystemLogAsync(log);
                 logger.LogWarning("Key already exists");
-                return Error.KeyExists;
+                return new Error(Error.ErrorType.KeyExists, $"Insert failed: session key '{key}' already exists");
             }
 
             return Result<Error>.Ok;
@@ -92,7 +92,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Cache overflowed");
-            return Error.Overflow;
+            return new Error(Error.ErrorType.Overflow, "Insert failed: cache overflow while inserting session");
         }
         catch (Exception error)
         {
@@ -106,7 +106,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Failed to insert into session cache");
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Insert failed: unexpected exception while inserting session cache entry");
         }
     }
 
@@ -118,7 +118,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
         {
             if (key == string.Empty || key is null)
             {
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "Upsert failed: key was null or empty");
             }
 
             sem = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
@@ -135,7 +135,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
                 platformClient.CreateSystemLogAsync(log);
                 logger.LogWarning("Game not found");
-                return Error.GameNotFound;
+                return new Error(Error.ErrorType.GameNotFound, $"Upsert failed: no session found for key '{key}'");
             }
 
             var session = entry.GetSession();
@@ -156,7 +156,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Overflow error");
-            return Error.Overflow;
+            return new Error(Error.ErrorType.Overflow, "Upsert failed: cache overflow while updating session");
         }
         catch (Exception error)
         {
@@ -170,7 +170,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Failed to upsert into session cache");
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Upsert failed: unexpected exception while updating session cache entry");
         }
         finally
         {
@@ -186,7 +186,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
         {
             if (key == string.Empty || key is null)
             {
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "Upsert<TResult> failed: key was null or empty");
             }
 
             sem = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
@@ -202,7 +202,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
                 platformClient.CreateSystemLogAsync(log);
                 logger.LogWarning("Game not found");
-                return Error.GameNotFound;
+                return new Error(Error.ErrorType.GameNotFound, $"Upsert<TResult> failed: no session found for key '{key}'");
             }
 
             var session = entry.GetSession();
@@ -223,7 +223,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Failed to upsert into session cache");
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Upsert<TResult> failed: unexpected exception while updating session cache entry");
         }
         finally
         {
@@ -240,7 +240,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
             if (key == string.Empty || key is null)
             {
                 logger.LogCritical("Tried to remove session with non present key");
-                return Error.NullReference;
+                return new Error(Error.ErrorType.NullReference, "Remove failed: key was null or empty");
             }
 
             sem = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
@@ -275,7 +275,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Remove - overflow error");
-            return Error.Overflow;
+            return new Error(Error.ErrorType.Overflow, "Remove failed: cache overflow while removing session");
         }
         catch (Exception error)
         {
@@ -289,7 +289,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
 
             platformClient.CreateSystemLogAsync(log);
             logger.LogError(error, "Failed to remove session from cache");
-            return Error.System;
+            return new Error(Error.ErrorType.System, "Remove failed: unexpected exception while removing session cache entry");
         }
         finally
         {

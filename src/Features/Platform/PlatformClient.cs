@@ -58,7 +58,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
 
                 CreateSystemLogAsync(log);
                 logger.LogError("Failed to persist game, status code: {StatusCode}", response.StatusCode);
-                return Error.Http;
+                return new Error(Error.ErrorType.Http, $"PersistGame failed: upstream returned status {(int)response.StatusCode}");
             }
 
             return Result<Error>.Ok;
@@ -75,7 +75,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
 
             CreateSystemLogAsync(log);
             logger.LogError(error, nameof(PersistGame));
-            return Error.Http;
+            return new Error(Error.ErrorType.Http, "PersistGame failed: HTTP request exception while persisting game");
         }
         catch (Exception error)
         {
@@ -88,7 +88,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
 
             CreateSystemLogAsync(log);
             logger.LogError(error, nameof(PersistGame));
-            return Error.System;
+            return new Error(Error.ErrorType.System, "PersistGame failed: unexpected exception while persisting game");
         }
     }
 
@@ -145,7 +145,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogError("Failed to create system log, status code: {StatusCode}", response.StatusCode);
-                return Error.Http;
+                return new Error(Error.ErrorType.Http, $"CreateSystemLog failed: upstream returned status {(int)response.StatusCode}");
             }
 
             return Result<Error>.Ok;
@@ -153,12 +153,12 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
         catch (HttpRequestException error)
         {
             logger.LogError(error, nameof(CreateSystemLog));
-            return Error.Http;
+            return new Error(Error.ErrorType.Http, "CreateSystemLog failed: HTTP request exception while sending system log");
         }
         catch (Exception error)
         {
             logger.LogError(error, "Error creating system log");
-            return Error.System;
+            return new Error(Error.ErrorType.System, "CreateSystemLog failed: unexpected exception while sending system log");
         }
     }
 
@@ -203,7 +203,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
 
                 CreateSystemLogAsync(log);
                 logger.LogError("Failed to free game key: {Key}, status code: {StatusCode}", key, response.StatusCode);
-                return Error.Http;
+                return new Error(Error.ErrorType.Http, $"FreeGameKey failed: upstream returned status {(int)response.StatusCode} for key '{key}'");
             }
 
             logger.LogInformation("Game key released: {string}", key);
@@ -213,7 +213,7 @@ public class PlatformClient(IHttpClientFactory httpClientFactory, ILogger<Platfo
         catch (Exception error)
         {
             logger.LogError(error, nameof(FreeGameKey));
-            return Error.System;
+            return new Error(Error.ErrorType.System, $"FreeGameKey failed: unexpected exception while freeing key '{key}'");
         }
     }
 }

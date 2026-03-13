@@ -34,19 +34,43 @@ public sealed record CachedSession<T>
     }
 }
 
-public enum Error
+public sealed record Error
 {
-    KeyExists = 0,
-    NotGameHost = 1,
-    GameClosed = 2,
-    GameFinished = 3,
-    GameNotFound = 4,
-    System = 5,
-    Json = 6,
-    NullReference = 7,
-    Overflow = 8,
-    Http = 9,
-    Upstream = 10
+    public ErrorType Type { get; init; }
+    public string Message { get; init; }
+
+    public Error(ErrorType type, string message)
+    {
+        Type = type;
+        Message = message;
+    }
+
+    public enum ErrorType
+    {
+        KeyExists = 0,
+        NotGameHost = 1,
+        GameClosed = 2,
+        GameFinished = 3,
+        GameNotFound = 4,
+        System = 5,
+        Json = 6,
+        NullReference = 7,
+        Overflow = 8,
+        Http = 9,
+        Upstream = 10
+    }
+
+    public static Error KeyExists => new(ErrorType.KeyExists, "Game key in use");
+    public static Error NotGameHost => new(ErrorType.NotGameHost, "Only game host can perform this action");
+    public static Error GameClosed => new(ErrorType.GameClosed, "Game is closed for new actions");
+    public static Error GameFinished => new(ErrorType.GameFinished, "Game is finished");
+    public static Error GameNotFound => new(ErrorType.GameNotFound, "Game not found");
+    public static Error System => new(ErrorType.System, "Internal system error");
+    public static Error Json => new(ErrorType.Json, "Serialization error");
+    public static Error NullReference => new(ErrorType.NullReference, "Null or empty value provided");
+    public static Error Overflow => new(ErrorType.Overflow, "Overflow error");
+    public static Error Http => new(ErrorType.Http, "HTTP error");
+    public static Error Upstream => new(ErrorType.Upstream, "Upstream service error");
 }
 
 public class CacheTTLOptions
