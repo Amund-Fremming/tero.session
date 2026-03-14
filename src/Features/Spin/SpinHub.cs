@@ -142,6 +142,13 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
             var result = await cache.Upsert(key, session => session.AddPlayer(userId));
             if (result.IsErr())
             {
+
+                if (result.Err().Type == Error.ErrorType.IdConflict)
+                {
+                    await Clients.Caller.SendAsync("error", "En spiller med din id har allerede blitt med");
+                    await base.OnDisconnectedAsync(new Exception(string.Empty));
+                    return false;
+                }
                 if (result.Err().Type == Error.ErrorType.GameClosed)
                 {
                     await Clients.Caller.SendAsync("error", "Spillet har allerede startet");

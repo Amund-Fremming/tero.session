@@ -57,7 +57,8 @@ public sealed record Error
         NullReference = 7,
         Overflow = 8,
         Http = 9,
-        Upstream = 10
+        Upstream = 10,
+        IdConflict = 11,
     }
 
     public static Error KeyExists => new(ErrorType.KeyExists, "Game key in use");

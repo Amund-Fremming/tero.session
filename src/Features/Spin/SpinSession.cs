@@ -50,7 +50,7 @@ public class SpinSession : IJoinableSession<SpinSession>, ICleanuppable<SpinSess
     {
         if (Players.ContainsKey(userId))
         {
-            return this;
+            return new Error(Error.ErrorType.IdConflict, $"User with id {userId} already joined");
         }
 
         if (Players.Count == 0)
