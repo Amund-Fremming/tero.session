@@ -12,7 +12,7 @@ namespace tero.session.src.Features.Spin;
 
 public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> manager, GameSessionCache<SpinSession> cache, PlatformClient platformClient) : Hub
 {
-    private const uint MIN_ITERATIONS = 1; // TODO make 10
+    private const uint MIN_ITERATIONS = 1;
 
     public override async Task OnConnectedAsync()
     {
@@ -413,7 +413,7 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 await platformClient.FreeGameKey(key);
                 if (result.Err().Type == Error.ErrorType.GameFinished)
                 {
-                    await Clients.OthersInGroup(key).SendAsync("state", SpinGameState.Finished);
+                    await Clients.Group(key).SendAsync("state", SpinGameState.Finished);
                     return SpinGameState.Finished;
                 }
 

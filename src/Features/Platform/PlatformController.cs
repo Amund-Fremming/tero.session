@@ -52,7 +52,6 @@ public class PlatformController(
         }
     }
 
-    // TODO - add this endpoint to admin dashboard
     [HttpGet]
     public IActionResult CacheInfo()
     {
