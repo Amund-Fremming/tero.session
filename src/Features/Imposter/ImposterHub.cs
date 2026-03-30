@@ -71,7 +71,12 @@ public class ImposterHub(
             var session = getResult.Unwrap();
             if (hubInfo.UserId == session.HostId)
             {
-                await cache.Remove(hubInfo.GameKey);
+                var removeResult = await cache.Remove(hubInfo.GameKey);
+                if (removeResult.IsErr())
+                {
+                    logger.LogError("OnDisconnectedAsync: failed to remove session for host disconnect. Key: {GameKey}, Error: {Error}", hubInfo.GameKey, removeResult.Err().Message);
+                    CoreUtils.LogCriticalError(platformClient, nameof(OnDisconnectedAsync), "Failed to remove ImposterSession on host disconnect", new Exception(removeResult.Err().Message));
+                }
             }
 
             await base.OnDisconnectedAsync(exception);
@@ -103,6 +108,10 @@ public class ImposterHub(
                     var entry = removeOldOption.Unwrap();
                     await Groups.RemoveFromGroupAsync(Context.ConnectionId, entry.GameKey);
                 }
+            }
+            else
+            {
+                logger.LogWarning("ConnectToGroup: Failed to remove old entry from manager cache");
             }
 
             var result = await cache.Get(key);
@@ -220,7 +229,8 @@ public class ImposterHub(
             var removeResult = await cache.Remove(key);
             if (removeResult.IsErr())
             {
-                logger.LogError("Failed to remove game");
+                logger.LogError("StartGame: failed to remove session after game start. Key: {GameKey}, Error: {Error}", key, removeResult.Err().Message);
+                CoreUtils.LogCriticalError(platformClient, nameof(StartGame), "Failed to remove ImposterSession after game start", new Exception(removeResult.Err().Message));
             }
 
             await platformClient.FreeGameKey(key);

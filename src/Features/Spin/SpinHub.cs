@@ -259,8 +259,8 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
         }
         catch (Exception error)
         {
-            logger.LogError(error, nameof(StartGame));
-            CoreUtils.LogCriticalError(platformClient, "StartGame", "Start SpinSession threw an exception", error);
+            logger.LogError(error, nameof(PersistGame));
+            CoreUtils.LogCriticalError(platformClient, nameof(PersistGame), "PersistGame SpinSession threw an exception", error);
             return false;
         }
     }

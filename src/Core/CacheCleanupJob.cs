@@ -39,9 +39,9 @@ public class CacheCleanupJob(
                     quizManagerCleanup
                 );
             }
-            catch (OperationCanceledException error)
+            catch (OperationCanceledException)
             {
-                logger.LogError(error, "Backgorund cleanup failed to cancel");
+                logger.LogInformation("Cache cleanup service stopping (cancellation requested)");
                 break;
             }
             catch (Exception error)

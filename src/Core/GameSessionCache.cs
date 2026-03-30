@@ -59,7 +59,7 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
         {
             if (key == string.Empty || key is null || session is null)
             {
-                logger.LogInformation("Recieved a empty key");
+                logger.LogWarning("Insert called with null or empty key/session");
                 return new Error(Error.ErrorType.NullReference, "Insert failed: key or session was null/empty");
             }
 
@@ -197,7 +197,8 @@ public class GameSessionCache<TSession>(ILogger<GameSessionCache<TSession>> logg
                 var log = LogBuilder.New()
                     .WithAction(LogAction.Read)
                     .WithCeverity(LogCeverity.Warning)
-                    .WithFunctionName($"Upsert - {typeof(TSession)}")
+                    .WithFunctionName($"Upsert<TResult> - {typeof(TSession)}")
+                    .WithDescription("Game session not found in cache")
                     .Build();
 
                 platformClient.CreateSystemLogAsync(log);
