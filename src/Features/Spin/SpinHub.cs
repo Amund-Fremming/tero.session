@@ -12,7 +12,7 @@ namespace tero.session.src.Features.Spin;
 
 public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> manager, GameSessionCache<SpinSession> cache, PlatformClient platformClient) : Hub
 {
-    private const uint MIN_ITERATIONS = 1;
+    private const uint MIN_ITERATIONS = 10;
 
     public override async Task OnConnectedAsync()
     {

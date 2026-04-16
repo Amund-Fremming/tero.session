@@ -10,7 +10,7 @@ public class ImposterHub(
     GameSessionCache<ImposterSession> cache,
     PlatformClient platformClient) : Hub
 {
-    private const uint MIN_ITERATIONS = 1;
+    private const uint MIN_ITERATIONS = 10;
     private const uint MIN_PLAYERS = 3;
     public override async Task OnConnectedAsync()
     {
