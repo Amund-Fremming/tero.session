@@ -27,4 +27,5 @@ artifacts/
 *.sln.docstates
 
 # Secrets
+appsettings.development.json
 appsettings.Development.json
