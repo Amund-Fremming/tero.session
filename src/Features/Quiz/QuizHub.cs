@@ -122,6 +122,12 @@ public class QuizHub(GameSessionCache<QuizSession> cache, HubConnectionManager<Q
                 return;
             }
 
+            if (question.Length > 80)
+            {
+                await Clients.Caller.SendAsync("error", "Teksten kan ikke være lengre enn 80 tegn.");
+                return;
+            }
+
             var result = await cache.Upsert(key, session => session.AddQuesiton(question));
             if (result.IsErr())
             {

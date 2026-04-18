@@ -215,6 +215,12 @@ public class SpinHub(ILogger<SpinHub> logger, HubConnectionManager<SpinSession> 
                 return;
             }
 
+            if (round.Length > 80)
+            {
+                await Clients.Caller.SendAsync("error", "Teksten kan ikke være lengre enn 80 tegn.");
+                return;
+            }
+
             var result = await cache.Upsert(
                 key,
                 session => session.AddRound(round)
