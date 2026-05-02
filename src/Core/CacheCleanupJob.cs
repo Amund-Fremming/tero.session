@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using tero.session.src.Features.Imposter;
 using tero.session.src.Features.Platform;
 using tero.session.src.Features.Quiz;
 using tero.session.src.Features.Spin;
@@ -10,10 +11,13 @@ public class CacheCleanupJob(
     ILogger<CacheCleanupJob> logger,
     GameSessionCache<SpinSession> spinCache,
     GameSessionCache<QuizSession> quizCache,
+    GameSessionCache<ImposterSession> imposterCache,
     HubConnectionManager<SpinSession> spinManager,
     HubConnectionManager<QuizSession> quizManager,
+    HubConnectionManager<ImposterSession> imposterManager,
     IHubContext<SpinHub> spinHub,
-    IHubContext<QuizHub> quizHub
+    IHubContext<QuizHub> quizHub,
+    IHubContext<ImposterHub> imposterHub
 ) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,15 +32,19 @@ public class CacheCleanupJob(
 
                 var spinSessionCleanup = CleanupCache(spinHub, spinCache);
                 var quizSessionCleanup = CleanupCache(quizHub, quizCache);
+                var imposterSessionCleanup = CleanupCache(imposterHub, imposterCache);
 
                 var spinManagerCleanup = CleanupManager(spinHub, spinManager, spinCache);
                 var quizManagerCleanup = CleanupManager(quizHub, quizManager);
+                var imposterManagerCleanup = CleanupManager(imposterHub, imposterManager);
 
                 await Task.WhenAll(
                     spinSessionCleanup,
                     quizSessionCleanup,
+                    imposterSessionCleanup,
                     spinManagerCleanup,
-                    quizManagerCleanup
+                    quizManagerCleanup,
+                    imposterManagerCleanup
                 );
             }
             catch (OperationCanceledException)
@@ -170,6 +178,7 @@ public class CacheCleanupJob(
                 if (info.HasExpired())
                 {
                     await hub.Groups.RemoveFromGroupAsync(connId, info.GameKey);
+                    manager.Remove(connId);
                 }
             }
         }
